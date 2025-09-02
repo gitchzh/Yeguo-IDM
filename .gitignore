@@ -1,0 +1,218 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+
+# Application specific
+app.log
+downloads/
+temp/
+*.tmp
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific
+*.mp4
+*.mp3
+*.srt
+*.m4a
+*.avi
+*.mkv
+*.mov
+*.wmv
+*.flv
+*.webm
+*.ts
+*.m3u8
+*.vtt
+*.ass
+*.ssa
+
+# Downloaded files
+downloads/
+videos/
+audio/
+subtitles/
+
+# Logs
+*.log
+logs/
+app.log
+
+# Email configuration files (contain sensitive data)
+setup_email.bat
+setup_email.sh
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+*.temp
+
+# FFmpeg (if included)
+ffmpeg.exe
+ffprobe.exe
+resources/ffmpeg.exe
+resources/ffprobe.exe
+resources/ffmpeg
+resources/ffprobe
+
+# Demo and test files
+demo_*.py
+test_*.py
+*_demo.py
+*_test.py
+tests/
+
+# Theme and transformation files
+*_theme.md
+*_transformation.md
+*_summary.md
+*bugfix*.md
+*cleanup*.md
+*_FIX.md
+
+# User guide (if not needed in repo)
+USER_GUIDE.md
+CLEANUP_REPORT.md
+
+# Build and temporary files
+BUILD_SUCCESS.md
+ICON_TRAY_FIX.md
+simple_build.py
+test_icon_tray.py
+test_build.py
+COMPLETION_SUMMARY.md
+BUILD_README.md
+LOG_MANAGEMENT_INTEGRATION.md
+DEVELOPER_GUIDE.md
+API_REFERENCE.md
+PROJECT_STRUCTURE.md
+EMAIL_SETUP.md
+QUICK_SETUP.md
+
+# Large binary files
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Configuration files with sensitive data
+config.ini
+settings.json
+credentials.json
