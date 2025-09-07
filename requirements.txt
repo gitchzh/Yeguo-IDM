@@ -1,0 +1,24 @@
+# Yeguo-Downloader 依赖包列表
+# 版本要求基于Python 3.7+
+
+# 核心依赖
+yt-dlp>=2025.08.31
+PyQt5>=5.15.0
+requests>=2.31.0
+
+# 已删除ED2K和BT相关依赖
+
+# 可选依赖 - 用于提升下载速度
+# aria2c: 高性能多线程下载器，用于yt-dlp外部下载
+# 安装方法:
+# Windows: winget install aria2.aria2
+# macOS: brew install aria2
+# Linux: sudo apt-get install aria2 或 sudo yum install aria2
+# 或者从官网下载: https://aria2.github.io/
+
+# 视频处理依赖
+ffmpeg-python>=0.2.0  # FFmpeg Python包装器，跨平台支持
+moviepy>=1.0.3        # 视频编辑库，内置FFmpeg功能
+
+# 其他依赖
+sqlite3  # 通常包含在Python标准库中
