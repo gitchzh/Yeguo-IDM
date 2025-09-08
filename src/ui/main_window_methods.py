@@ -937,22 +937,22 @@ class VideoDownloaderMethods:
             self.ensure_column_widths()
             
             # 显示详细的解析完成提示
-            message = f"解析完成！\n\n"
-            message += f"• 分类数量：{resolution_groups} 个\n"
+            message = f"{tr('main_window.parse_completed')}\n\n"
+            message += f"• {tr('main_window.resolution_groups')}: {resolution_groups}\n"
             if unique_video_count > 0:
-                message += f"• 视频文件：{unique_video_count} 个\n"
+                message += f"• {tr('main_window.video_files')}: {unique_video_count}\n"
             if unique_music_count > 0:
-                message += f"• 音乐文件：{unique_music_count} 个\n"
-            message += f"• 项目总数：{total_video_items} 个\n"
-            message += f"• 可用格式：{total_formats} 个\n\n"
-            message += "请选择需要下载的格式。"
+                message += f"• {tr('main_window.music_files')}: {unique_music_count}\n"
+            message += f"• {tr('main_window.total_items')}: {total_video_items}\n"
+            message += f"• {tr('main_window.available_formats')}: {total_formats}\n\n"
+            message += tr('main_window.please_select_formats')
             
-            QMessageBox.information(self, "解析完成", message)
+            QMessageBox.information(self, tr('main_window.parse_completed'), message)
         else:
             logger.warning("未找到任何可用格式")
             self.update_status_bar("未找到可用格式", "", "")
             self.status_scroll_label.setText(tr("main_window.parse_failed"))  # 清空滚动状态
-            QMessageBox.warning(self, "提示", "未找到可下载的格式，请检查链接或稍后重试")
+            QMessageBox.warning(self, tr("messages.tip"), tr("main_window.no_formats_found"))
         self.reset_parse_state()
 
 
@@ -1138,6 +1138,9 @@ class VideoDownloaderMethods:
         # 创建分辨率分组和视频项
         logger.info(f"视频 '{formatted_title}' 将被添加到以下分辨率: {list(video_formats.keys())}")
         
+        # 在状态栏显示解析完成信息
+        self.update_scroll_status(f"✅ 解析完成: {formatted_title}")
+        
         # 统计每个分辨率分类下的视频数量
         resolution_counts = {}
         for i in range(self.format_tree.topLevelItemCount()):
@@ -1165,6 +1168,8 @@ class VideoDownloaderMethods:
                 res_group.setIcon(0, self.style().standardIcon(self.style().SP_DirIcon))  # 添加文件夹图标
                 res_group.setExpanded(True)
                 logger.info(f"创建新的分辨率分组: {res}")
+                # 在状态栏显示创建新分辨率分组的信息
+                self.update_scroll_status(f"📁 创建新分辨率分组: {res}")
 
             # 为每个分辨率创建最优视频项
             # 在文件名中添加分辨率和编码信息
@@ -1187,6 +1192,8 @@ class VideoDownloaderMethods:
             self._add_tree_item(video_item, filename, "mp4", res, total_size, thumbnail_url)
             
             logger.info(f"添加最优视频项到分辨率 {res} ({vcodec_short}): {filename}")
+            # 在状态栏显示添加视频项的信息
+            self.update_scroll_status(f"📹 添加视频到 {res}: {filename}")
             
             # 添加到格式列表
             format_id = v_format["format_id"]
@@ -1212,6 +1219,10 @@ class VideoDownloaderMethods:
             current_counts[res_name] = item.childCount()
         
         logger.info(f"当前分辨率分类统计: {current_counts}")
+        
+        # 在状态栏显示统计信息
+        total_videos = sum(current_counts.values())
+        self.update_scroll_status(f"📊 当前共有 {len(current_counts)} 个分辨率分组，{total_videos} 个视频")
         
         # 实时更新UI - 每个视频解析完成后立即启用选择按钮
         if self.formats:

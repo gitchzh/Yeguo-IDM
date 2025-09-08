@@ -65,13 +65,20 @@
     "status_completed": "Completed",
     "status_error": "Error",
     "cancel_parse": "Cancel Parse",
-    "choose_path": "Choose Path",
+    "choose_path": "Browse",
     "pause": "Pause",
     "choose_save_path": "Choose Save Path",
     "not_downloaded": "Not Downloaded",
     "downloaded": "Downloaded",
     "unknown_size": "Unknown Size",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "resolution_groups": "Resolution Groups",
+    "video_files": "Video Files",
+    "music_files": "Music Files",
+    "total_items": "Total Items",
+    "available_formats": "Available Formats",
+    "please_select_formats": "Please select the formats you want to download.",
+    "no_formats_found": "No downloadable formats found, please check the link or try again later"
   },
   "settings": {
     "title": "Settings",
@@ -162,7 +169,8 @@
     "submit_success": "Thank you for your feedback! We will carefully handle your issue.",
     "submit_error": "Failed to send feedback, please try again later",
     "title_required": "Please enter problem title (required)",
-    "description_required": "Please describe the problem you encountered in detail (required)"
+    "description_required": "Please describe the problem you encountered in detail (required)",
+    "email_notice": "Since we haven't set up an email server yet, please contact me via email gmrchzh@gmail.com for feedback or submit issues directly on Gitee and GitHub!"
   },
   "tray": {
     "show_main_window": "Show Main Window",
@@ -289,7 +297,7 @@
     "code_description": "You can view my latest code repository at any time:",
     "gitee_repo": "Gitee Repository",
     "github_repo": "GitHub Repository",
-    "thanks": "Thank you for using Yeguo IDM! I will continue to improve this project.",
+    "thanks": "Thank you for choosing to use Yeguo IDM software. This software is intended for personal learning purposes only. Knowledge should be paid for - please do not download paid content from others for distribution or profit! I sincerely trust you!",
     "quick_help": "Quick Help",
     "view_latest_code": "View Latest Code",
     "view_latest_code_desc": "You can view my latest code repository at any time:",

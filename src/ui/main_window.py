@@ -157,6 +157,15 @@ class VideoDownloader(QMainWindow, VideoDownloaderMethods):
         self.smart_parse_button.setMinimumSize(80, 32)
         self.smart_parse_button.setMaximumSize(80, 32)
         input_layout.addWidget(self.smart_parse_button)
+        layout.addLayout(input_layout)
+
+        # ==================== 配置区域 ====================
+        
+        # 按钮行布局（取消解析按钮和选择路径按钮左右对齐）
+        button_layout = QHBoxLayout()
+        button_layout.setAlignment(Qt.AlignVCenter)  # 垂直居中对齐
+        button_layout.setSpacing(12)  # 设置组件间距
+        button_layout.setContentsMargins(0, 0, 0, 0)  # 移除边距
         
         # 取消解析按钮
         self.cancel_parse_button = QPushButton(tr("main_window.cancel_parse"), self)
@@ -165,12 +174,21 @@ class VideoDownloader(QMainWindow, VideoDownloaderMethods):
         self.cancel_parse_button.setMinimumSize(125, 32)
         self.cancel_parse_button.setMaximumSize(125, 32)
         self.cancel_parse_button.setEnabled(False)  # 初始禁用
-        input_layout.addWidget(self.cancel_parse_button)
-        layout.addLayout(input_layout)
-
-        # ==================== 配置区域 ====================
+        button_layout.addWidget(self.cancel_parse_button)
         
-        # 保存路径选择
+        # 添加弹性空间，实现左右对齐
+        button_layout.addStretch()
+        
+        # 选择路径按钮
+        self.path_button = QPushButton(tr("main_window.choose_path"), self)
+        self.path_button.clicked.connect(self.choose_save_path)
+        self.path_button.setFixedSize(125, 32)  # 稍微增加宽度以确保视觉一致性
+        self.path_button.setMinimumSize(125, 32)
+        self.path_button.setMaximumSize(125, 32)
+        button_layout.addWidget(self.path_button)
+        layout.addLayout(button_layout)
+        
+        # 保存路径显示
         path_layout = QHBoxLayout()
         path_layout.setAlignment(Qt.AlignVCenter)  # 垂直居中对齐
         path_layout.setSpacing(12)  # 设置组件间距
@@ -178,12 +196,6 @@ class VideoDownloader(QMainWindow, VideoDownloaderMethods):
         
         self.path_label = QLabel(f"{tr('main_window.save_path')} {self.save_path}")
         path_layout.addWidget(self.path_label)
-        self.path_button = QPushButton(tr("main_window.choose_path"), self)
-        self.path_button.clicked.connect(self.choose_save_path)
-        self.path_button.setFixedSize(125, 32)  # 稍微增加宽度以确保视觉一致性
-        self.path_button.setMinimumSize(125, 32)
-        self.path_button.setMaximumSize(125, 32)
-        path_layout.addWidget(self.path_button)
         layout.addLayout(path_layout)
 
         # 下载速度限制设置
@@ -936,9 +948,12 @@ class VideoDownloader(QMainWindow, VideoDownloaderMethods):
                 return
             
             # 检查是否处于解析暂停状态，如果是则忽略状态更新
-            if hasattr(self, 'smart_parse_button') and self.smart_parse_button.text() == tr("main_window.parse") and hasattr(self, 'is_parsing') and self.is_parsing:
-                # 处于解析暂停状态，忽略状态更新
-                return
+            # 修复逻辑：只有当按钮文本是"暂停"且is_parsing为True时，才是正常解析状态，应该显示状态
+            # 当按钮文本是"解析"且is_parsing为True时，说明是暂停状态，应该忽略状态更新
+            # 临时注释掉暂停检查，确保状态栏能正常显示
+            # if hasattr(self, 'smart_parse_button') and self.smart_parse_button.text() == tr("main_window.parse") and hasattr(self, 'is_parsing') and self.is_parsing:
+            #     # 处于解析暂停状态，忽略状态更新
+            #     return
             
             # 检查是否处于下载暂停状态，如果是则忽略状态更新
             if hasattr(self, 'smart_pause_button') and self.smart_pause_button.text() == tr("main_window.resume_download"):

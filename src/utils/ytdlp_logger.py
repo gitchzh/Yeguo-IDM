@@ -19,7 +19,7 @@ class YTDlpLogger(QObject):
     
     def debug(self, msg):
         """调试日志"""
-        self.signal.emit(f"[DEBUG] {msg}")
+        self.signal.emit(msg)
     
     def warning(self, msg):
         """警告日志"""

@@ -71,7 +71,14 @@
     "not_downloaded": "未下载",
     "downloaded": "已下载",
     "unknown_size": "未知大小",
-    "unknown": "未知"
+    "unknown": "未知",
+    "resolution_groups": "分类数量",
+    "video_files": "视频文件",
+    "music_files": "音乐文件",
+    "total_items": "项目总数",
+    "available_formats": "可用格式",
+    "please_select_formats": "请选择需要下载的格式。",
+    "no_formats_found": "未找到可下载的格式，请检查链接或稍后重试"
   },
   "settings": {
     "title": "设置",
@@ -162,7 +169,8 @@
     "submit_success": "感谢您的反馈！我们会认真处理您的问题。",
     "submit_error": "发送反馈失败，请稍后重试",
     "title_required": "请输入问题标题（必填）",
-    "description_required": "请详细描述您遇到的问题（必填）"
+    "description_required": "请详细描述您遇到的问题（必填）",
+    "email_notice": "由于现在没有搭建邮件服务器，请有问题的朋友通过邮件gmrchzh@gmail.com向我反馈问题或者直接在码云以及Github上提交问题给我！"
   },
   "tray": {
     "show_main_window": "显示主窗口",
@@ -288,7 +296,7 @@
     "code_description": "您可以随时查看我的最新代码仓库：",
     "gitee_repo": "Gitee仓库",
     "github_repo": "GitHub仓库",
-    "thanks": "感谢使用椰果IDM！我会持续改进这个项目。",
+    "thanks": "感谢您愿意使用椰果IDM软件，这个软件仅用于个人学习使用，知识是需要付费的，不要下载别人付费的内容来传播盈利！我真诚的相信您！",
     "quick_help": "快速帮助",
     "view_latest_code": "查看最新代码",
     "view_latest_code_desc": "您可以随时查看我的最新代码仓库：",

@@ -247,7 +247,7 @@ class FeedbackDialog(QDialog):
     def init_ui(self):
         """初始化界面"""
         self.setWindowTitle(tr("feedback.title"))
-        self.setFixedSize(520, 450)  # 增加窗口尺寸确保完整显示
+        self.setFixedSize(580, 500)  # 进一步增加窗口尺寸确保完整显示
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         
         # 设置窗口居中显示
@@ -313,6 +313,14 @@ class FeedbackDialog(QDialog):
         self.content_edit.setMinimumHeight(120)  # 增加文本编辑框高度
         self.content_edit.setMaximumHeight(120)  # 限制最大高度
         desc_layout.addWidget(self.content_edit)
+        
+        # 添加说明文字
+        notice_label = QLabel(tr("feedback.email_notice"))
+        notice_label.setFont(QFont("Microsoft YaHei", 9))
+        notice_label.setWordWrap(True)
+        notice_label.setStyleSheet("color: #0078d4; margin: 4px 0; line-height: 1.4; padding: 4px;")  # 蓝色字体，添加内边距
+        notice_label.setMaximumWidth(520)  # 限制最大宽度，确保换行
+        desc_layout.addWidget(notice_label)
         
         desc_group.setLayout(desc_layout)
         layout.addWidget(desc_group)
