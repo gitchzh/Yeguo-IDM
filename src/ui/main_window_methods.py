@@ -1089,51 +1089,6 @@ class VideoDownloaderMethods:
         filtered_formats = filter_formats(formats, strict_filter=False)
         logger.info(f"过滤后剩余 {len(filtered_formats)} 个格式")
 
-        # 检查是否为ED2K或磁力链接类型
-        link_type = info.get('type', '')
-        if link_type in ['ed2k', 'magnet']:
-            # 对于ED2K和磁力链接，直接处理格式，不进行视频特定的过滤
-            logger.info(f"检测到{link_type.upper()}链接，跳过视频格式过滤")
-
-            for f in filtered_formats:
-                format_id = f.get("format_id")
-                ext = f.get("ext", "")
-                filesize = f.get("filesize") or f.get("filesize_approx")
-
-                # 调试信息：记录每个格式的详细信息
-                logger.info(f"格式 {format_id}: ext={ext}, filesize={filesize}, format_note={f.get('format_note')}")
-
-                # 直接添加到格式列表，不进行视频特定的过滤
-                format_data = {
-                    "video_id": video_id,
-                    "format_id": format_id,
-                    "description": f"{video_title}.{ext}",
-                    "type": link_type,
-                    "ext": ext,
-                    "filesize": filesize if filesize else 0,
-                    "url": info.get("webpage_url", ""),
-                    "item": None  # 稍后设置
-                }
-                
-                # 对于ED2K格式，添加额外的字段
-                if link_type == "ed2k":
-                    format_data.update({
-                        "file_name": info.get("file_name", video_title),
-                        "file_hash": info.get("file_hash", ""),
-                        "file_size": info.get("file_size", filesize)
-                    })
-                
-                self.formats.append(format_data)
-
-                logger.info(f"添加{link_type.upper()}格式: {format_id} -> {video_title}.{ext}")
-
-            # 直接添加到树形控件
-            if self.formats:
-                self.add_formats_to_tree()
-                self.smart_select_button.setEnabled(True)
-                self.update_selection_count()
-
-            return
 
         # 处理格式信息
         for f in filtered_formats:
@@ -2308,7 +2263,6 @@ class VideoDownloaderMethods:
                 font-size: 12px; 
                 color: #6c757d; 
                 margin: 0;
-                overflow-wrap: break-word;
                 line-height: 1.4;
             """)
             path_content.setWordWrap(True)
@@ -2421,6 +2375,7 @@ class VideoDownloaderMethods:
 
     def on_download_error(self, error_msg: str) -> None:
         """处理下载错误 - 改进版本，提供更友好的错误提示"""
+        logger.error(f"🔴 收到下载错误信号: {error_msg}")
         # 防止active_downloads变为负数
         if self.active_downloads > 0:
             self.active_downloads -= 1
@@ -3626,13 +3581,7 @@ class VideoDownloaderMethods:
             type_group.setCheckState(0, Qt.Unchecked)
             
             # 设置类型名称和图标
-            if fmt_type == "ed2k":
-                type_group.setText(0, "ED2K 链接")
-                type_group.setIcon(0, self.style().standardIcon(self.style().SP_DriveNetIcon))
-            elif fmt_type == "magnet":
-                type_group.setText(0, "磁力链接")
-                type_group.setIcon(0, self.style().standardIcon(self.style().SP_DriveNetIcon))
-            else:
+            if fmt_type:
                 type_group.setText(0, f"{fmt_type.upper()} 格式")
                 type_group.setIcon(0, self.style().standardIcon(self.style().SP_DirIcon))
             
@@ -3646,12 +3595,7 @@ class VideoDownloaderMethods:
                 format_item.setCheckState(0, Qt.Unchecked)
                 
                 # 设置图标
-                if fmt_type == "ed2k":
-                    format_item.setIcon(0, self.style().standardIcon(self.style().SP_FileIcon))
-                elif fmt_type == "magnet":
-                    format_item.setIcon(0, self.style().standardIcon(self.style().SP_FileIcon))
-                else:
-                    format_item.setIcon(0, self.style().standardIcon(self.style().SP_MediaPlay))
+                format_item.setIcon(0, self.style().standardIcon(self.style().SP_MediaPlay))
                 
                 # 设置文本内容
                 description = fmt.get("description", "未知格式")

@@ -10,12 +10,11 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTabWidget, QWidget,
     QLabel, QLineEdit, QPushButton, QSpinBox, QCheckBox,
     QComboBox, QGroupBox, QFormLayout, QFileDialog, QMessageBox,
-    QDialogButtonBox, QScrollArea, QSizePolicy
+    QDialogButtonBox, QScrollArea, QSizePolicy, QApplication
 )
 from PyQt5.QtCore import Qt, QSettings
 from PyQt5.QtGui import QFont
 
-from ..core.config import Config
 from ..core.i18n_manager import i18n_manager, tr
 from ..utils.logger import logger
 
@@ -780,8 +779,9 @@ class SettingsDialog(QDialog):
             
             # 语言设置
             selected_language = self.language_combo.currentData()
-            if selected_language:
-                i18n_manager.set_language(selected_language)
+            if selected_language and selected_language != i18n_manager.get_current_language():
+                # 检查语言是否发生变化
+                self.handle_language_change(selected_language)
             
             # 高级设置
             self.settings.setValue("proxy_enabled", self.proxy_enabled.isChecked())
@@ -993,3 +993,82 @@ class SettingsDialog(QDialog):
         finally:
             self.test_proxy_button.setEnabled(True)
             self.test_proxy_button.setText(tr("settings.test_proxy"))
+    
+    def handle_language_change(self, new_language: str):
+        """处理语言变化，显示重启提示"""
+        try:
+            # 显示重启确认对话框
+            reply = QMessageBox.question(
+                self,
+                tr("settings.language_change_title"),
+                tr("settings.language_change_message"),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes
+            )
+            
+            if reply == QMessageBox.Yes:
+                # 保存新语言设置
+                i18n_manager.set_language(new_language)
+                
+                # 显示重启提示
+                QMessageBox.information(
+                    self,
+                    tr("settings.restart_required_title"),
+                    tr("settings.restart_required_message")
+                )
+                
+                # 执行重启
+                self.restart_application()
+            else:
+                # 用户取消，恢复原来的语言选择
+                current_language = i18n_manager.get_current_language()
+                for i in range(self.language_combo.count()):
+                    if self.language_combo.itemData(i) == current_language:
+                        self.language_combo.setCurrentIndex(i)
+                        break
+                        
+        except Exception as e:
+            logger.error(f"处理语言变化失败: {e}")
+            QMessageBox.critical(self, tr("messages.operation_failed"), f"语言切换失败: {e}")
+    
+    def restart_application(self):
+        """重启应用程序"""
+        try:
+            import sys
+            import os
+            import subprocess
+            
+            # 获取当前应用程序的路径
+            if getattr(sys, 'frozen', False):
+                # 如果是打包后的可执行文件
+                application_path = sys.executable
+            else:
+                # 如果是Python脚本
+                application_path = sys.executable
+                script_path = os.path.abspath(__file__)
+                # 找到main.py的路径
+                main_py_path = os.path.join(os.path.dirname(script_path), "..", "..", "main.py")
+                main_py_path = os.path.abspath(main_py_path)
+                
+                if os.path.exists(main_py_path):
+                    application_path = [application_path, main_py_path]
+                else:
+                    logger.error("找不到main.py文件")
+                    return
+            
+            # 启动新进程
+            if isinstance(application_path, list):
+                subprocess.Popen(application_path)
+            else:
+                subprocess.Popen([application_path])
+            
+            # 关闭当前应用程序
+            QApplication.quit()
+            
+        except Exception as e:
+            logger.error(f"重启应用程序失败: {e}")
+            QMessageBox.critical(
+                self, 
+                tr("messages.operation_failed"), 
+                f"重启失败，请手动重启应用程序: {e}"
+            )

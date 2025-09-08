@@ -73,26 +73,7 @@ class Config:
     MIN_TIMEOUT = 5                 # 最小超时时间（秒）
     MAX_TIMEOUT = 600               # 最大超时时间（秒）
     
-    # 磁力下载配置
-    MAGNET_DOWNLOAD_ENABLED = True  # 是否启用磁力下载
-    MAGNET_DHT_ENABLED = True       # 是否启用DHT
-    MAGNET_LSD_ENABLED = True       # 是否启用本地服务发现
-    MAGNET_UPNP_ENABLED = True      # 是否启用UPnP端口映射
-    MAGNET_NAT_PMP_ENABLED = True   # 是否启用NAT-PMP端口映射
-    MAGNET_MAX_CONNECTIONS = 200    # 每个种子的最大连接数
-    MAGNET_MAX_UPLOADS = 10         # 每个种子的最大上传数
-    MAGNET_DOWNLOAD_TIMEOUT = 300   # 磁力下载超时时间（秒）
-    MAGNET_PROGRESS_UPDATE_INTERVAL = 1.0  # 进度更新间隔（秒）
 
-    # ED2K下载配置
-    ED2K_DOWNLOAD_ENABLED = True    # 是否启用ED2K下载
-    ED2K_KAD_ENABLED = True         # 是否启用Kademlia DHT
-    ED2K_SERVER_ENABLED = True      # 是否启用服务器连接
-    ED2K_MAX_CONNECTIONS = 50       # 最大连接数
-    ED2K_MAX_DOWNLOADS = 5          # 最大同时下载数
-    ED2K_DOWNLOAD_TIMEOUT = 300     # ED2K下载超时时间（秒）
-    ED2K_PROGRESS_UPDATE_INTERVAL = 1.0  # 进度更新间隔（秒）
-    ED2K_FAST_MODE = False  # 快速模式：跳过服务器连接，直接使用模拟下载（已禁用）
     
     # 启动配置
     STARTUP_SHOW_WARNINGS = False   # 启动时是否显示警告信息
@@ -163,27 +144,7 @@ class Config:
             elif cls.DEFAULT_TIMEOUT > 600:
                 errors.append(f"DEFAULT_TIMEOUT 建议不超过600秒，当前值: {cls.DEFAULT_TIMEOUT}")
             
-            # 验证磁力下载配置
-            if cls.MAGNET_MAX_CONNECTIONS <= 0:
-                errors.append(f"MAGNET_MAX_CONNECTIONS 必须大于0，当前值: {cls.MAGNET_MAX_CONNECTIONS}")
-            elif cls.MAGNET_MAX_CONNECTIONS > 1000:
-                errors.append(f"MAGNET_MAX_CONNECTIONS 建议不超过1000，当前值: {cls.MAGNET_MAX_CONNECTIONS}")
             
-            if cls.MAGNET_DOWNLOAD_TIMEOUT <= 0:
-                errors.append(f"MAGNET_DOWNLOAD_TIMEOUT 必须大于0，当前值: {cls.MAGNET_DOWNLOAD_TIMEOUT}")
-            elif cls.MAGNET_DOWNLOAD_TIMEOUT > 1800:
-                errors.append(f"MAGNET_DOWNLOAD_TIMEOUT 建议不超过1800秒，当前值: {cls.MAGNET_DOWNLOAD_TIMEOUT}")
-            
-            # 验证ED2K下载配置
-            if cls.ED2K_MAX_CONNECTIONS <= 0:
-                errors.append(f"ED2K_MAX_CONNECTIONS 必须大于0，当前值: {cls.ED2K_MAX_CONNECTIONS}")
-            elif cls.ED2K_MAX_CONNECTIONS > 200:
-                errors.append(f"ED2K_MAX_CONNECTIONS 建议不超过200，当前值: {cls.ED2K_MAX_CONNECTIONS}")
-            
-            if cls.ED2K_DOWNLOAD_TIMEOUT <= 0:
-                errors.append(f"ED2K_DOWNLOAD_TIMEOUT 必须大于0，当前值: {cls.ED2K_DOWNLOAD_TIMEOUT}")
-            elif cls.ED2K_DOWNLOAD_TIMEOUT > 1800:
-                errors.append(f"ED2K_DOWNLOAD_TIMEOUT 建议不超过1800秒，当前值: {cls.ED2K_DOWNLOAD_TIMEOUT}")
             
             # 验证版本号格式
             if not cls.APP_VERSION or not isinstance(cls.APP_VERSION, str):
@@ -217,7 +178,5 @@ class Config:
             "max_retry_attempts": cls.MAX_RETRY_ATTEMPTS,
             "retry_delay": cls.RETRY_DELAY,
             "default_timeout": cls.DEFAULT_TIMEOUT,
-            "magnet_enabled": cls.MAGNET_DOWNLOAD_ENABLED,
-            "ed2k_enabled": cls.ED2K_DOWNLOAD_ENABLED,
             "startup_show_warnings": cls.STARTUP_SHOW_WARNINGS
         }

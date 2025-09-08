@@ -179,7 +179,14 @@ class SoundManager(QObject):
                     winsound.MessageBeep(winsound.MB_OK)
             else:
                 # 其他系统使用简单的beep
-                print('\a')  # ASCII bell character
+                # 使用系统默认提示音
+                import sys
+                if sys.platform == "win32":
+                    import winsound
+                    winsound.MessageBeep(winsound.MB_OK)
+                else:
+                    # 其他系统使用简单的beep
+                    print('\a')  # ASCII bell character
                 
         except Exception as e:
             logger.error(f"播放系统声音失败: {e}")

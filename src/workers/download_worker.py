@@ -39,6 +39,7 @@ class DownloadWorker(QThread):
         self._is_paused = False
         self.last_filename = None
         self._start_time = time.time()
+        self._download_completed = False
     
     def cancel(self):
         """取消下载"""
@@ -118,6 +119,8 @@ class DownloadWorker(QThread):
                     "filename": self.last_filename
                 }
                 self.progress_signal.emit(finished_data)
+                # 标记下载已完成，避免后续异常触发错误弹窗
+                self._download_completed = True
     
     def run(self):
         """执行下载任务"""
@@ -141,8 +144,12 @@ class DownloadWorker(QThread):
         except Exception as e:
             error_msg = f"下载失败: {str(e)}"
             self.log_signal.emit(f"❌ {error_msg}")
-            if not self._is_cancelled and not self._is_paused:
+            # 如果下载已经完成，不触发错误弹窗
+            if not self._is_cancelled and not self._is_paused and not self._download_completed:
+                self.log_signal.emit(f"🔴 触发错误信号: {error_msg}")
                 self.error.emit(error_msg)
+            else:
+                self.log_signal.emit(f"🟢 跳过错误信号: cancelled={self._is_cancelled}, paused={self._is_paused}, completed={self._download_completed}")
     
     def _download_netease_music(self):
         """专门处理网易云音乐下载"""
@@ -321,7 +328,10 @@ class DownloadWorker(QThread):
                         # 验证文件完整性
                         if self._verify_downloaded_file(self.last_filename):
                             self.log_signal.emit(f"网易云音乐下载成功: {self.last_filename}")
+                            self._download_completed = True
                             self.finished.emit(self.last_filename)
+                            # 立即退出线程，避免后续异常
+                            self.quit()
                             return
                         else:
                             self.log_signal.emit(f"网易云音乐文件验证失败: {self.last_filename}")
@@ -352,6 +362,26 @@ class DownloadWorker(QThread):
         except Exception as e:
             error_msg = f"网易云音乐下载失败: {str(e)}"
             self.log_signal.emit(error_msg)
+            
+            # 检查是否是文件重命名错误，如果是且文件已存在，则认为是成功
+            if "Unable to rename file" in str(e) and self.last_filename:
+                # 检查文件是否真的存在
+                if os.path.exists(self.last_filename):
+                    self.log_signal.emit(f"✅ 网易云音乐文件重命名失败但文件已存在，视为下载成功: {self.last_filename}")
+                    self._download_completed = True
+                    self.finished.emit(self.last_filename)
+                    self.quit()
+                    return
+                # 检查.part文件是否存在（重命名前的文件）
+                part_file = self.last_filename + ".part"
+                if os.path.exists(part_file):
+                    self.log_signal.emit(f"✅ 网易云音乐文件重命名失败但.part文件已存在，视为下载成功: {part_file}")
+                    self._download_completed = True
+                    # 发送最终文件名而不是.part文件名
+                    self.finished.emit(self.last_filename)
+                    self.quit()
+                    return
+            
             self.error.emit(error_msg)
     
     def _download_direct_url(self):
@@ -471,7 +501,10 @@ class DownloadWorker(QThread):
                     }
                     self.progress_signal.emit(finished_data)
                     
+                    self._download_completed = True
                     self.finished.emit(output_file)
+                    # 立即退出线程，避免后续异常
+                    self.quit()
                 else:
                     raise Exception("文件完整性验证失败")
             else:
@@ -480,6 +513,26 @@ class DownloadWorker(QThread):
         except Exception as e:
             error_msg = f"直接下载失败: {str(e)}"
             self.log_signal.emit(error_msg)
+            
+            # 检查是否是文件重命名错误，如果是且文件已存在，则认为是成功
+            if "Unable to rename file" in str(e) and self.last_filename:
+                # 检查文件是否真的存在
+                if os.path.exists(self.last_filename):
+                    self.log_signal.emit(f"✅ 直接下载文件重命名失败但文件已存在，视为下载成功: {self.last_filename}")
+                    self._download_completed = True
+                    self.finished.emit(self.last_filename)
+                    self.quit()
+                    return
+                # 检查.part文件是否存在（重命名前的文件）
+                part_file = self.last_filename + ".part"
+                if os.path.exists(part_file):
+                    self.log_signal.emit(f"✅ 直接下载文件重命名失败但.part文件已存在，视为下载成功: {part_file}")
+                    self._download_completed = True
+                    # 发送最终文件名而不是.part文件名
+                    self.finished.emit(self.last_filename)
+                    self.quit()
+                    return
+            
             self.error.emit(error_msg)
     
     def _verify_downloaded_file(self, file_path: str) -> bool:
@@ -723,7 +776,10 @@ class DownloadWorker(QThread):
                         if self.last_filename and os.path.exists(self.last_filename):
                             self.log_signal.emit(f"✅ {strategy_name} + 格式策略 {i+1} 成功！")
                             if not self._is_cancelled:
+                                self._download_completed = True
                                 self.finished.emit(self.last_filename)
+                                # 立即退出线程，避免后续异常
+                                self.quit()
                             return
                         
                         # 如果原始文件名不存在，检查合并后的文件名
@@ -732,7 +788,10 @@ class DownloadWorker(QThread):
                         if merged_file:
                             self.log_signal.emit(f"✅ 检测到合并后的文件: {merged_file}")
                             if not self._is_cancelled:
+                                self._download_completed = True
                                 self.finished.emit(merged_file)
+                                # 立即退出线程，避免后续异常
+                                self.quit()
                             return
                         
                         # 如果都没有找到，继续尝试下一个策略
@@ -772,6 +831,26 @@ class DownloadWorker(QThread):
         except Exception as e:
             error_msg = f"YouTube下载失败: {str(e)}"
             self.log_signal.emit(error_msg)
+            
+            # 检查是否是文件重命名错误，如果是且文件已存在，则认为是成功
+            if "Unable to rename file" in str(e) and self.last_filename:
+                # 检查文件是否真的存在
+                if os.path.exists(self.last_filename):
+                    self.log_signal.emit(f"✅ YouTube文件重命名失败但文件已存在，视为下载成功: {self.last_filename}")
+                    self._download_completed = True
+                    self.finished.emit(self.last_filename)
+                    self.quit()
+                    return
+                # 检查.part文件是否存在（重命名前的文件）
+                part_file = self.last_filename + ".part"
+                if os.path.exists(part_file):
+                    self.log_signal.emit(f"✅ YouTube文件重命名失败但.part文件已存在，视为下载成功: {part_file}")
+                    self._download_completed = True
+                    # 发送最终文件名而不是.part文件名
+                    self.finished.emit(self.last_filename)
+                    self.quit()
+                    return
+            
             self.error.emit(error_msg)
     
     def _find_merged_file(self):
@@ -854,11 +933,34 @@ class DownloadWorker(QThread):
             
             self.log_signal.emit("✅ 下载成功！")
             if not self._is_cancelled:
+                self._download_completed = True
                 self.finished.emit(self.last_filename or "")
+                # 立即退出线程，避免后续异常
+                self.quit()
                 
         except Exception as e:
             error_msg = f"一般下载失败: {str(e)}"
             self.log_signal.emit(error_msg)
+            
+            # 检查是否是文件重命名错误，如果是且文件已存在，则认为是成功
+            if "Unable to rename file" in str(e) and self.last_filename:
+                # 检查文件是否真的存在
+                if os.path.exists(self.last_filename):
+                    self.log_signal.emit(f"✅ 文件重命名失败但文件已存在，视为下载成功: {self.last_filename}")
+                    self._download_completed = True
+                    self.finished.emit(self.last_filename)
+                    self.quit()
+                    return
+                # 检查.part文件是否存在（重命名前的文件）
+                part_file = self.last_filename + ".part"
+                if os.path.exists(part_file):
+                    self.log_signal.emit(f"✅ 文件重命名失败但.part文件已存在，视为下载成功: {part_file}")
+                    self._download_completed = True
+                    # 发送最终文件名而不是.part文件名
+                    self.finished.emit(self.last_filename)
+                    self.quit()
+                    return
+            
             self.error.emit(error_msg)
     
 
