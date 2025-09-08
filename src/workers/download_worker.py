@@ -7,6 +7,7 @@ Download Worker Thread Module
 import os
 import time
 import random
+import threading
 from typing import Dict, Optional
 from PyQt5.QtCore import QThread, pyqtSignal
 from urllib.parse import urlparse
@@ -40,10 +41,27 @@ class DownloadWorker(QThread):
         self.last_filename = None
         self._start_time = time.time()
         self._download_completed = False
+        self._ydl_instance = None  # 保存yt-dlp实例引用
+        self._cancel_check_thread = None  # 取消检查线程
     
     def cancel(self):
         """取消下载"""
         self._is_cancelled = True
+        self.log_signal.emit("正在取消下载...")
+        
+        # 如果有活跃的yt-dlp实例，尝试中断它
+        if self._ydl_instance is not None:
+            try:
+                # 尝试中断yt-dlp下载
+                if hasattr(self._ydl_instance, 'cancel'):
+                    self._ydl_instance.cancel()
+                self.log_signal.emit("yt-dlp下载已中断")
+            except Exception as e:
+                self.log_signal.emit(f"中断yt-dlp下载时出错: {str(e)}")
+        
+        # 停止取消检查线程
+        if self._cancel_check_thread and self._cancel_check_thread.is_alive():
+            self._cancel_check_thread = None
     
     def pause(self):
         """暂停下载"""
@@ -52,6 +70,21 @@ class DownloadWorker(QThread):
     def resume(self):
         """恢复下载"""
         self._is_paused = False
+    
+    def _start_cancel_check(self):
+        """启动取消检查线程"""
+        if self._cancel_check_thread and self._cancel_check_thread.is_alive():
+            return
+        
+        def check_cancel():
+            while not self._is_cancelled and self._ydl_instance is not None:
+                time.sleep(0.5)  # 每0.5秒检查一次
+                if self._is_cancelled:
+                    self.log_signal.emit("检测到取消信号，正在停止下载...")
+                    break
+        
+        self._cancel_check_thread = threading.Thread(target=check_cancel, daemon=True)
+        self._cancel_check_thread.start()
     
     def progress_hook(self, d: Dict) -> None:
         """下载进度回调"""
@@ -321,7 +354,25 @@ class DownloadWorker(QThread):
                     
                     # 执行下载
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                        ydl.download([self.url])
+                        self._ydl_instance = ydl  # 保存实例引用
+                        # 在下载前检查是否已取消
+                        if self._is_cancelled:
+                            self.log_signal.emit("下载已取消")
+                            return
+                        
+                        # 启动取消检查线程
+                        self._start_cancel_check()
+                        
+                        try:
+                            ydl.download([self.url])
+                        except Exception as e:
+                            if self._is_cancelled:
+                                self.log_signal.emit("下载已取消")
+                                return
+                            else:
+                                raise e
+                        finally:
+                            self._ydl_instance = None  # 清除引用
                     
                     # 检查是否真的下载了文件
                     if self.last_filename and os.path.exists(self.last_filename):
@@ -769,7 +820,25 @@ class DownloadWorker(QThread):
                         
                         # 执行下载
                         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                            ydl.download([self.url])
+                            self._ydl_instance = ydl  # 保存实例引用
+                            # 在下载前检查是否已取消
+                            if self._is_cancelled:
+                                self.log_signal.emit("下载已取消")
+                                return
+                            
+                            # 启动取消检查线程
+                            self._start_cancel_check()
+                            
+                            try:
+                                ydl.download([self.url])
+                            except Exception as e:
+                                if self._is_cancelled:
+                                    self.log_signal.emit("下载已取消")
+                                    return
+                                else:
+                                    raise e
+                            finally:
+                                self._ydl_instance = None  # 清除引用
 
                         # 检查是否真的下载了文件 - 修复检测逻辑
                         # 首先检查原始文件名
@@ -929,7 +998,25 @@ class DownloadWorker(QThread):
             
             # 执行下载
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([self.url])
+                self._ydl_instance = ydl  # 保存实例引用
+                # 在下载前检查是否已取消
+                if self._is_cancelled:
+                    self.log_signal.emit("下载已取消")
+                    return
+                
+                # 启动取消检查线程
+                self._start_cancel_check()
+                
+                try:
+                    ydl.download([self.url])
+                except Exception as e:
+                    if self._is_cancelled:
+                        self.log_signal.emit("下载已取消")
+                        return
+                    else:
+                        raise e
+                finally:
+                    self._ydl_instance = None  # 清除引用
             
             self.log_signal.emit("✅ 下载成功！")
             if not self._is_cancelled:

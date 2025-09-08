@@ -361,7 +361,9 @@ class LogViewer(QDialog):
         
     def setup_ui(self) -> None:
         """设置用户界面"""
-        self.setWindowTitle("日志查看器")
+        from ..core.i18n_manager import tr
+        
+        self.setWindowTitle(tr("log.log_viewer"))
         self.setFixedSize(600, 500)
         self.setModal(False)
         
@@ -370,7 +372,7 @@ class LogViewer(QDialog):
         # 标题和统计信息
         header_layout = QHBoxLayout()
         
-        title_label = QLabel("应用程序日志")
+        title_label = QLabel(tr("log.log_content"))
         title_label.setStyleSheet("font-size: 14px; font-weight: bold; margin: 5px;")
         header_layout.addWidget(title_label)
         
@@ -387,21 +389,27 @@ class LogViewer(QDialog):
         control_layout = QHBoxLayout()
         
         # 日志级别过滤
-        level_label = QLabel("日志级别:")
+        level_label = QLabel(tr("log.log_level") + ":")
         self.level_combo = QComboBox()
-        self.level_combo.addItems(["全部", "DEBUG", "INFO", "WARNING", "ERROR"])
-        self.level_combo.setCurrentText("全部")
+        self.level_combo.addItems([
+            tr("log.all_levels"), 
+            tr("log.debug"), 
+            tr("log.info"), 
+            tr("log.warning"), 
+            tr("log.error")
+        ])
+        self.level_combo.setCurrentText(tr("log.all_levels"))
         
         control_layout.addWidget(level_label)
         control_layout.addWidget(self.level_combo)
         
         # 自动刷新
-        self.auto_refresh_check = QCheckBox("自动刷新")
+        self.auto_refresh_check = QCheckBox(tr("log.auto_refresh"))
         self.auto_refresh_check.setChecked(True)
         control_layout.addWidget(self.auto_refresh_check)
         
         # 刷新间隔
-        interval_label = QLabel("间隔(秒):")
+        interval_label = QLabel(tr("log.interval_seconds") + ":")
         self.interval_spin = QSpinBox()
         self.interval_spin.setRange(1, 60)
         self.interval_spin.setValue(5)
@@ -490,7 +498,7 @@ class LogViewer(QDialog):
         button_layout = QHBoxLayout()
         
         # 刷新按钮
-        self.refresh_button = QPushButton("刷新(&R)")
+        self.refresh_button = QPushButton(tr("log.refresh"))
         self.refresh_button.setStyleSheet("""
             QPushButton {
                 background-color: #fdfdfd;
@@ -515,7 +523,7 @@ class LogViewer(QDialog):
         button_layout.addWidget(self.refresh_button)
         
         # 导出按钮
-        self.export_button = QPushButton("导出(&E)")
+        self.export_button = QPushButton(tr("log.export_log"))
         self.export_button.setStyleSheet("""
             QPushButton {
                 background-color: #fdfdfd;
@@ -540,7 +548,7 @@ class LogViewer(QDialog):
         button_layout.addWidget(self.export_button)
         
         # 清空按钮
-        self.clear_button = QPushButton("清空(&C)")
+        self.clear_button = QPushButton(tr("log.clear_log"))
         self.clear_button.setStyleSheet("""
             QPushButton {
                 background-color: #fdfdfd;
@@ -567,7 +575,7 @@ class LogViewer(QDialog):
         button_layout.addStretch()
         
         # 关闭按钮
-        self.close_button = QPushButton("关闭(&X)")
+        self.close_button = QPushButton(tr("messages.close"))
         self.close_button.setStyleSheet("""
             QPushButton {
                 background-color: #fdfdfd;
@@ -659,54 +667,60 @@ class LogViewer(QDialog):
     
     def _update_stats(self) -> None:
         """更新统计信息"""
+        from ..core.i18n_manager import tr
+        
         stats = self.log_manager.get_log_stats()
         if stats['file_exists']:
             size_mb = stats['file_size'] / (1024 * 1024)
-            modified_str = stats['last_modified'].strftime("%Y-%m-%d %H:%M:%S") if stats['last_modified'] else "未知"
-            stats_text = f"大小: {size_mb:.2f}MB | 行数: {stats['line_count']} | 修改: {modified_str} | 备份: {stats['backup_count']}"
+            modified_str = stats['last_modified'].strftime("%Y-%m-%d %H:%M:%S") if stats['last_modified'] else tr("log.unknown")
+            stats_text = f"{tr('log.size')}: {size_mb:.2f}MB | {tr('log.lines')}: {stats['line_count']} | {tr('log.modified')}: {modified_str} | {tr('log.backup')}: {stats['backup_count']}"
         else:
-            stats_text = "日志文件不存在"
+            stats_text = tr("log.file_not_exists")
         
         self.stats_label.setText(stats_text)
     
     def export_log(self) -> None:
         """导出日志"""
+        from ..core.i18n_manager import tr
+        
         try:
             save_path, _ = QFileDialog.getSaveFileName(
                 self, 
-                "导出日志", 
+                tr("log.export_log"), 
                 f"椰果IDM日志_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                 "文本文件 (*.txt);;所有文件 (*)"
             )
             
             if save_path:
                 if self.log_manager.export_log(save_path):
-                    QMessageBox.information(self, "成功", f"日志已导出到:\n{save_path}")
+                    QMessageBox.information(self, tr("messages.operation_success"), tr("log.export_success") + f"\n{save_path}")
                 else:
-                    QMessageBox.critical(self, "错误", "导出日志失败")
+                    QMessageBox.critical(self, tr("messages.error"), tr("log.export_failed"))
                     
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"导出日志失败: {str(e)}")
+            QMessageBox.critical(self, tr("messages.error"), tr("log.export_failed") + f": {str(e)}")
     
     def clear_log(self) -> None:
         """清空日志"""
+        from ..core.i18n_manager import tr
+        
         msg_box = QMessageBox()
-        msg_box.setWindowTitle("确认清空")
-        msg_box.setText("确定要清空所有日志吗？此操作不可恢复！")
+        msg_box.setWindowTitle(tr("messages.confirm"))
+        msg_box.setText(tr("log.clear_confirm"))
         msg_box.setIcon(QMessageBox.Question)
         msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         msg_box.setDefaultButton(QMessageBox.No)
-        msg_box.button(QMessageBox.Yes).setText("是")
-        msg_box.button(QMessageBox.No).setText("否")
+        msg_box.button(QMessageBox.Yes).setText(tr("messages.yes"))
+        msg_box.button(QMessageBox.No).setText(tr("messages.no"))
         
         reply = msg_box.exec_()
         
         if reply == QMessageBox.Yes:
             if self.log_manager.clear_log():
                 self.load_log_content()
-                QMessageBox.information(self, "成功", "日志已清空")
+                QMessageBox.information(self, tr("messages.operation_success"), tr("log.clear_success"))
             else:
-                QMessageBox.critical(self, "错误", "清空日志失败")
+                QMessageBox.critical(self, tr("messages.error"), tr("log.clear_failed"))
     
     def closeEvent(self, event) -> None:
         """关闭事件"""

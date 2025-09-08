@@ -510,9 +510,9 @@ class SettingsDialog(QDialog):
         self.log_retention_days = QSpinBox()
         self.log_retention_days.setRange(1, 365)
         self.log_retention_days.setValue(30)
-        self.log_retention_days.setSuffix(" 天")
+        self.log_retention_days.setSuffix(" " + tr("settings.days"))
         self.log_retention_days.setFixedHeight(30)  # 固定高度为30px
-        log_layout.addRow("日志保留天数:", self.log_retention_days)
+        log_layout.addRow(tr("settings.log_retention_days") + ":", self.log_retention_days)
         
         log_group.setLayout(log_layout)
         layout.addWidget(log_group)
@@ -644,7 +644,7 @@ class SettingsDialog(QDialog):
         network_layout.addRow(tr("settings.proxy_url"), self.proxy_url)
         
         self.user_agent = QLineEdit()
-        self.user_agent.setPlaceholderText("自定义User-Agent")
+        self.user_agent.setPlaceholderText(tr("settings.custom_user_agent"))
         self.user_agent.setFixedHeight(36)  # 增加高度到36px，确保提示文字完全显示
         network_layout.addRow(tr("settings.user_agent"), self.user_agent)
         
@@ -997,7 +997,7 @@ class SettingsDialog(QDialog):
     def handle_language_change(self, new_language: str):
         """处理语言变化，显示重启提示"""
         try:
-            # 显示重启确认对话框
+            # 显示友好的重启提示
             reply = QMessageBox.question(
                 self,
                 tr("settings.language_change_title"),
@@ -1010,15 +1010,15 @@ class SettingsDialog(QDialog):
                 # 保存新语言设置
                 i18n_manager.set_language(new_language)
                 
-                # 显示重启提示
+                # 显示完成提示
                 QMessageBox.information(
                     self,
                     tr("settings.restart_required_title"),
                     tr("settings.restart_required_message")
                 )
                 
-                # 执行重启
-                self.restart_application()
+                # 关闭程序，让用户手动重启
+                QApplication.quit()
             else:
                 # 用户取消，恢复原来的语言选择
                 current_language = i18n_manager.get_current_language()
@@ -1056,14 +1056,32 @@ class SettingsDialog(QDialog):
                     logger.error("找不到main.py文件")
                     return
             
-            # 启动新进程
-            if isinstance(application_path, list):
-                subprocess.Popen(application_path)
-            else:
-                subprocess.Popen([application_path])
-            
-            # 关闭当前应用程序
-            QApplication.quit()
+            # 使用更安全的方式启动新进程，避免tkinter问题
+            try:
+                # 启动新进程
+                if isinstance(application_path, list):
+                    subprocess.Popen(application_path, 
+                                   creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
+                else:
+                    subprocess.Popen([application_path], 
+                                   creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
+                
+                # 延迟关闭当前应用程序，确保新进程已启动
+                import time
+                time.sleep(1)
+                
+                # 关闭当前应用程序
+                QApplication.quit()
+                
+            except Exception as restart_error:
+                logger.error(f"重启进程失败: {restart_error}")
+                # 如果重启失败，提供手动重启的提示
+                QMessageBox.information(
+                    self,
+                    tr("settings.restart_required_title"),
+                    tr("settings.restart_required_message") + "\n\n如果程序没有自动重启，请手动关闭并重新打开程序。"
+                )
+                QApplication.quit()
             
         except Exception as e:
             logger.error(f"重启应用程序失败: {e}")

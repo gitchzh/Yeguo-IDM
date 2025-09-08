@@ -100,11 +100,11 @@ class SubtitleDialog(QDialog):
         layout = QVBoxLayout()
         
         # URL输入区域
-        url_group = QGroupBox("视频URL")
+        url_group = QGroupBox(tr("subtitle.video_url"))
         url_layout = QHBoxLayout()
         
         self.url_input = QLineEdit()
-        self.url_input.setPlaceholderText("请输入视频URL")
+        self.url_input.setPlaceholderText(tr("subtitle.video_url_placeholder"))
         url_layout.addWidget(self.url_input)
         
         self.fetch_button = QPushButton(tr("subtitle.fetch"))
@@ -157,15 +157,15 @@ class SubtitleDialog(QDialog):
         
         # 字幕信息
         info_layout = QHBoxLayout()
-        info_layout.addWidget(QLabel("语言:"))
+        info_layout.addWidget(QLabel(tr("subtitle.language") + ":"))
         self.language_label = QLabel("")
         info_layout.addWidget(self.language_label)
         
-        info_layout.addWidget(QLabel("格式:"))
+        info_layout.addWidget(QLabel(tr("subtitle.format") + ":"))
         self.format_label = QLabel("")
         info_layout.addWidget(self.format_label)
         
-        info_layout.addWidget(QLabel("类型:"))
+        info_layout.addWidget(QLabel(tr("subtitle.type") + ":"))
         self.type_label = QLabel("")
         info_layout.addWidget(self.type_label)
         
@@ -187,7 +187,7 @@ class SubtitleDialog(QDialog):
         
         # 保存路径
         path_layout = QHBoxLayout()
-        path_layout.addWidget(QLabel("保存路径:"))
+        path_layout.addWidget(QLabel(tr("subtitle.save_path") + ":"))
         self.save_path_input = QLineEdit()
         self.save_path_input.setText(os.getcwd())
         path_layout.addWidget(self.save_path_input)
@@ -201,7 +201,7 @@ class SubtitleDialog(QDialog):
         
         # 格式转换
         format_layout = QHBoxLayout()
-        format_layout.addWidget(QLabel("转换格式:"))
+        format_layout.addWidget(QLabel(tr("subtitle.convert_format") + ":"))
         self.convert_format_combo = QComboBox()
         self.convert_format_combo.addItem(tr("subtitle.keep_original"), "")
         self.convert_format_combo.addItem("SRT", "srt")

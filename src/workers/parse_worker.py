@@ -70,6 +70,9 @@ class ParseWorker(QThread):
             # 根据平台设置不同的超时时间
             if 'bilibili.com' in self.url:
                 timeout_duration = 180  # B站播放列表需要更长时间
+                # 检查是否是B站多P视频
+                if 'bilibili.com/video/' in self.url and '?p=' not in self.url:
+                    self.log_signal.emit("🔍 检测到B站视频URL，尝试获取所有分P")
             elif 'youtube.com' in self.url or 'youtu.be' in self.url:
                 timeout_duration = 300  # YouTube增加超时时间到5分钟，确保稳定性
             else:
@@ -89,15 +92,31 @@ class ParseWorker(QThread):
                     return
                 
                 if "entries" in info:
-                    # 处理播放列表或频道 - 边解析边发送结果
-                    total_entries = len(info['entries'])
-                    self.status_signal.emit(f"发现播放列表，包含 {total_entries} 个视频")
+                    # 检查是否是B站多P视频
+                    if 'bilibili.com' in self.url and 'bilibili.com/video/' in self.url:
+                        # B站多P视频，使用特殊处理逻辑
+                        self.log_signal.emit("🔍 检测到B站多P视频，使用特殊处理逻辑")
+                        self._handle_bilibili_multi_part(info)
+                        return
+                    else:
+                        # 其他播放列表或频道 - 边解析边发送结果
+                        total_entries = len(info['entries'])
+                        self.status_signal.emit(f"发现播放列表，包含 {total_entries} 个视频")
+                        self.log_signal.emit(f"🔍 开始处理播放列表，总条目数: {total_entries}")
                     
                     for i, entry in enumerate(info["entries"]):
                         if self._check_cancelled():
                             return
                         
+                        self.log_signal.emit(f"🔍 处理条目 {i+1}/{total_entries}")
+                        
                         if entry:
+                            entry_title = entry.get("title", "未知标题")
+                            entry_id = entry.get("id", "未知ID")
+                            self.log_signal.emit(f"  - 标题: {entry_title}")
+                            self.log_signal.emit(f"  - ID: {entry_id}")
+                            self.log_signal.emit(f"  - 是否有formats: {'formats' in entry}")
+                            
                             # 发送进度信号
                             self.progress_signal.emit(i + 1, total_entries)
                             
@@ -105,8 +124,11 @@ class ParseWorker(QThread):
                             if "formats" not in entry or not entry["formats"]:
                                 # 重新解析单个视频以获取完整的格式信息
                                 video_url = entry.get("webpage_url") or entry.get("url")
+                                self.log_signal.emit(f"  - 需要重新解析，URL: {video_url}")
+                                
                                 if video_url:
                                     self.status_signal.emit(f"重新解析视频 {i+1}/{total_entries}: {entry.get('title', 'Unknown')}")
+                                    self.log_signal.emit(f"🔄 开始重新解析: {entry_title}")
                                     
                                     try:
                                         # 使用单个视频的解析选项
@@ -127,26 +149,42 @@ class ParseWorker(QThread):
                                                 entry["view_count"] = video_info.get("view_count", entry.get("view_count"))
                                                 
                                                 self.status_signal.emit(f"成功获取视频格式: {len(video_info['formats'])} 个格式")
+                                                self.log_signal.emit(f"✅ 重新解析成功，获得 {len(video_info['formats'])} 个格式")
                                             else:
                                                 self.status_signal.emit(f"无法获取视频格式信息")
+                                                self.log_signal.emit(f"❌ 重新解析失败：无法获取格式信息")
                                     except Exception as e:
                                         self.status_signal.emit(f"重新解析视频失败: {str(e)}")
+                                        self.log_signal.emit(f"❌ 重新解析异常: {str(e)}")
                                         # 如果重新解析失败，使用空格式列表
                                         entry["formats"] = []
+                                else:
+                                    self.log_signal.emit(f"❌ 无法获取视频URL")
+                            else:
+                                self.log_signal.emit(f"✅ 已有格式信息，跳过重新解析")
                             
                             # 立即发送单个视频解析完成信号
+                            self.log_signal.emit(f"📤 发送视频解析信号: {entry_title}")
                             self.video_parsed_signal.emit(entry, self.url)
                             
                             # 短暂延迟，避免UI阻塞
                             time.sleep(0.1)
+                        else:
+                            self.log_signal.emit(f"❌ 条目 {i+1} 为空，跳过")
                     
                     # 发送最终完成信号
                     self.finished.emit(info)
                 else:
-                    # 单个视频，直接发送结果
-                    self.progress_signal.emit(1, 1)
-                    self.video_parsed_signal.emit(info, self.url)
-                    self.finished.emit(info)
+                    # 单个视频，检查是否是B站多P视频
+                    if 'bilibili.com' in self.url and 'bilibili.com/video/' in self.url and '?p=' not in self.url:
+                        # 特殊处理B站多P视频 - 尝试获取所有分P
+                        self.log_signal.emit("🔍 检测到B站视频，尝试获取所有分P信息")
+                        self._handle_bilibili_multi_part(info)
+                    else:
+                        # 普通单个视频，直接发送结果
+                        self.progress_signal.emit(1, 1)
+                        self.video_parsed_signal.emit(info, self.url)
+                        self.finished.emit(info)
                         
             finally:
                 pass
@@ -340,6 +378,193 @@ class ParseWorker(QThread):
             "socket_timeout": 20,  # 单个视频解析使用更短超时
             "retries": 2,
         }
+    
+    def _handle_bilibili_multi_part(self, info: dict) -> None:
+        """处理B站多P视频"""
+        try:
+            # 调试：输出完整的视频信息结构
+            self.log_signal.emit(f"🔍 B站视频信息结构:")
+            self.log_signal.emit(f"  - 标题: {info.get('title', '未知')}")
+            self.log_signal.emit(f"  - ID: {info.get('id', '未知')}")
+            self.log_signal.emit(f"  - 网页URL: {info.get('webpage_url', '未知')}")
+            self.log_signal.emit(f"  - 所有键: {list(info.keys())}")
+            
+            # 尝试从多个可能的字段获取分P数量
+            page_count = 1
+            possible_page_fields = ['page_count', 'pages', 'total_pages', 'episode_count']
+            
+            for field in possible_page_fields:
+                if field in info:
+                    page_count = info[field]
+                    self.log_signal.emit(f"  - 从字段 '{field}' 获取分P数量: {page_count}")
+                    break
+            
+            # 如果没有找到分P数量，尝试从其他信息推断
+            if page_count == 1:
+                # 检查是否有entries信息
+                if 'entries' in info and info['entries']:
+                    page_count = len(info['entries'])
+                    self.log_signal.emit(f"  - 从entries获取分P数量: {page_count}")
+                else:
+                    # 尝试从标题中推断分P数量
+                    title = info.get('title', '')
+                    import re
+                    p_matches = re.findall(r'[Pp](\d+)', title)
+                    if p_matches:
+                        max_p = max(int(p) for p in p_matches)
+                        page_count = max_p
+                        self.log_signal.emit(f"  - 从标题推断分P数量: {page_count}")
+            
+            self.log_signal.emit(f"🔍 最终确定B站视频有 {page_count} 个分P")
+            
+            # 如果有entries，直接处理entries而不是重新解析
+            if 'entries' in info and info['entries']:
+                self.log_signal.emit("🔍 使用entries信息处理B站多P视频")
+                self._process_bilibili_entries(info['entries'])
+                return
+            
+            if page_count > 1:
+                # 获取基础URL（去掉p参数）
+                base_url = self.url.split('?')[0]
+                
+                # 逐个解析每个分P
+                for p_num in range(1, page_count + 1):
+                    if self._check_cancelled():
+                        return
+                    
+                    p_url = f"{base_url}?p={p_num}"
+                    self.log_signal.emit(f"🔄 解析分P {p_num}/{page_count}: {p_url}")
+                    
+                    try:
+                        # 使用单个视频的解析选项
+                        single_video_opts = self._get_single_video_options()
+                        single_video_opts["logger"] = YTDlpLogger(self.log_signal)
+                        
+                        with yt_dlp.YoutubeDL(single_video_opts) as ydl:
+                            p_info = ydl.extract_info(p_url, download=False)
+                            if p_info:
+                                # 修改标题以包含P数信息
+                                original_title = p_info.get('title', '未知标题')
+                                if f'P{p_num}' not in original_title:
+                                    p_info['title'] = f"{original_title} P{p_num}"
+                                
+                                self.log_signal.emit(f"✅ 成功解析分P {p_num}: {p_info['title']}")
+                                
+                                # 发送解析完成信号
+                                self.progress_signal.emit(p_num, page_count)
+                                self.video_parsed_signal.emit(p_info, p_url)
+                                
+                                # 短暂延迟
+                                time.sleep(0.2)
+                            else:
+                                self.log_signal.emit(f"❌ 解析分P {p_num} 失败")
+                    except Exception as e:
+                        self.log_signal.emit(f"❌ 解析分P {p_num} 异常: {str(e)}")
+                
+                # 发送最终完成信号
+                self.finished.emit(info)
+            else:
+                # 只有一个分P，按普通视频处理
+                self.log_signal.emit("🔍 只有一个分P，按普通视频处理")
+                self.progress_signal.emit(1, 1)
+                self.video_parsed_signal.emit(info, self.url)
+                self.finished.emit(info)
+                
+        except Exception as e:
+            self.log_signal.emit(f"❌ 处理B站多P视频失败: {str(e)}")
+            # 回退到普通处理
+            self.progress_signal.emit(1, 1)
+            self.video_parsed_signal.emit(info, self.url)
+            self.finished.emit(info)
+    
+    def _process_bilibili_entries(self, entries: list) -> None:
+        """处理B站多P视频的entries"""
+        try:
+            total_entries = len(entries)
+            self.log_signal.emit(f"🔍 开始处理B站多P视频entries，共 {total_entries} 个分P")
+            
+            for i, entry in enumerate(entries):
+                if self._check_cancelled():
+                    return
+                
+                if entry:
+                    entry_title = entry.get("title", "未知标题")
+                    entry_id = entry.get("id", "未知ID")
+                    entry_url = entry.get("webpage_url", "")
+                    
+                    self.log_signal.emit(f"🔍 处理分P {i+1}/{total_entries}: {entry_title}")
+                    self.log_signal.emit(f"  - ID: {entry_id}")
+                    self.log_signal.emit(f"  - URL: {entry_url}")
+                    
+                    # 检查是否需要重新解析单个视频以获取格式信息
+                    if "formats" not in entry or not entry["formats"]:
+                        self.log_signal.emit(f"  - 需要重新解析以获取格式信息")
+                        
+                        try:
+                            # 使用单个视频的解析选项
+                            single_video_opts = self._get_single_video_options()
+                            single_video_opts["logger"] = YTDlpLogger(self.log_signal)
+                            
+                            with yt_dlp.YoutubeDL(single_video_opts) as ydl:
+                                video_info = ydl.extract_info(entry_url, download=False)
+                                if video_info and "formats" in video_info:
+                                    entry["formats"] = video_info["formats"]
+                                    # 合并其他有用的信息
+                                    entry["duration"] = video_info.get("duration", entry.get("duration"))
+                                    entry["thumbnail"] = video_info.get("thumbnail", entry.get("thumbnail"))
+                                    entry["uploader"] = video_info.get("uploader", entry.get("uploader"))
+                                    entry["upload_date"] = video_info.get("upload_date", entry.get("upload_date"))
+                                    entry["view_count"] = video_info.get("view_count", entry.get("view_count"))
+                                    
+                                    # 验证格式信息的有效性
+                                    valid_formats = []
+                                    for fmt in video_info["formats"]:
+                                        if fmt.get("vcodec", "none") != "none" and fmt.get("resolution", "unknown") != "unknown":
+                                            valid_formats.append(fmt)
+                                    
+                                    if valid_formats:
+                                        self.log_signal.emit(f"✅ 成功获取格式信息: {len(video_info['formats'])} 个格式，{len(valid_formats)} 个有效")
+                                    else:
+                                        self.log_signal.emit(f"⚠️ 获取格式信息但无有效格式: {len(video_info['formats'])} 个格式")
+                                else:
+                                    self.log_signal.emit(f"❌ 无法获取格式信息")
+                                    entry["formats"] = []
+                        except Exception as e:
+                            self.log_signal.emit(f"❌ 重新解析失败: {str(e)}")
+                            entry["formats"] = []
+                    else:
+                        # 验证已有格式信息的有效性
+                        valid_formats = []
+                        for fmt in entry["formats"]:
+                            if fmt.get("vcodec", "none") != "none" and fmt.get("resolution", "unknown") != "unknown":
+                                valid_formats.append(fmt)
+                        
+                        if valid_formats:
+                            self.log_signal.emit(f"✅ 已有格式信息: {len(entry['formats'])} 个格式，{len(valid_formats)} 个有效")
+                        else:
+                            self.log_signal.emit(f"⚠️ 已有格式信息但无有效格式: {len(entry['formats'])} 个格式")
+                    
+                    # 发送进度信号
+                    self.progress_signal.emit(i + 1, total_entries)
+                    
+                    # 发送视频解析完成信号
+                    self.log_signal.emit(f"📤 发送分P解析信号: {entry_title}")
+                    self.log_signal.emit(f"🔍 分P信号详情: ID={entry_id}, URL={entry_url}")
+                    self.video_parsed_signal.emit(entry, entry_url)
+                    
+                    # 短暂延迟，避免UI阻塞
+                    time.sleep(0.1)
+                else:
+                    self.log_signal.emit(f"❌ 分P {i+1} 为空，跳过")
+            
+            # 发送最终完成信号
+            self.finished.emit({"entries": entries})
+            
+        except Exception as e:
+            self.log_signal.emit(f"❌ 处理B站entries失败: {str(e)}")
+            # 回退到普通处理
+            self.progress_signal.emit(1, 1)
+            self.finished.emit({"entries": entries})
     
     def pause(self) -> None:
         """暂停解析 - 使用PyQt5线程安全机制"""

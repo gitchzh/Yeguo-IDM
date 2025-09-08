@@ -117,23 +117,23 @@ class HistoryDialog(QDialog):
         
         # 关键词搜索
         keyword_layout = QHBoxLayout()
-        keyword_layout.addWidget(QLabel("关键词:"))
+        keyword_layout.addWidget(QLabel(tr("history.keyword") + ":"))
         self.keyword_input = QLineEdit()
-        self.keyword_input.setPlaceholderText("搜索标题、文件名或URL")
+        self.keyword_input.setPlaceholderText(tr("history.keyword_placeholder"))
         keyword_layout.addWidget(self.keyword_input)
         search_layout.addLayout(keyword_layout)
         
         # 过滤条件
         filter_layout = QHBoxLayout()
         
-        filter_layout.addWidget(QLabel("平台:"))
+        filter_layout.addWidget(QLabel(tr("history.platform") + ":"))
         self.platform_combo = QComboBox()
         self.platform_combo.addItem(tr("history.all"), "")
         self.platform_combo.addItem("YouTube", "youtube")
         self.platform_combo.addItem("Bilibili", "bilibili")
         filter_layout.addWidget(self.platform_combo)
         
-        filter_layout.addWidget(QLabel("状态:"))
+        filter_layout.addWidget(QLabel(tr("history.status") + ":"))
         self.status_combo = QComboBox()
         self.status_combo.addItem(tr("history.all"), "")
         self.status_combo.addItem(tr("history.completed"), "completed")
@@ -141,13 +141,13 @@ class HistoryDialog(QDialog):
         self.status_combo.addItem(tr("history.cancelled"), "cancelled")
         filter_layout.addWidget(self.status_combo)
         
-        filter_layout.addWidget(QLabel("开始日期:"))
+        filter_layout.addWidget(QLabel(tr("history.start_date") + ":"))
         self.start_date = QDateEdit()
         self.start_date.setDate(QDate.currentDate().addDays(-30))
         self.start_date.setCalendarPopup(True)
         filter_layout.addWidget(self.start_date)
         
-        filter_layout.addWidget(QLabel("结束日期:"))
+        filter_layout.addWidget(QLabel(tr("history.end_date") + ":"))
         self.end_date = QDateEdit()
         self.end_date.setDate(QDate.currentDate())
         self.end_date.setCalendarPopup(True)
@@ -175,13 +175,13 @@ class HistoryDialog(QDialog):
         
         self.export_button = QPushButton(tr("history.export"))
         self.export_button.setFont(QFont("Microsoft YaHei", 11))  # 统一使用微软雅黑字体
-        self.export_button.setFixedSize(50, 24)  # 与反馈页面按钮保持一致
+        self.export_button.setFixedSize(60, 24)  # 增加宽度以适应英文文本"Export"
         self.export_button.clicked.connect(self.export_history)
         button_layout.addWidget(self.export_button)
         
         self.clear_history_button = QPushButton(tr("history.clear_history"))
         self.clear_history_button.setFont(QFont("Microsoft YaHei", 11))  # 统一使用微软雅黑字体
-        self.clear_history_button.setFixedSize(90, 24)  # 增加宽度以适应英文文本
+        self.clear_history_button.setFixedSize(110, 24)  # 增加宽度以适应英文文本"Clear History"
         self.clear_history_button.clicked.connect(self.clear_history)
         button_layout.addWidget(self.clear_history_button)
         
@@ -226,7 +226,7 @@ class HistoryDialog(QDialog):
         # 状态栏
         status_layout = QHBoxLayout()
         status_layout.setContentsMargins(0, 4, 0, 4)  # 减少状态栏边距
-        self.status_label = QLabel("共 0 条记录")
+        self.status_label = QLabel(tr("history.total_records").format(count=0))
         status_layout.addWidget(self.status_label)
         
         status_layout.addStretch()
@@ -269,7 +269,7 @@ class HistoryDialog(QDialog):
         """搜索完成"""
         self.current_records = records
         self.update_table(records)
-        self.status_label.setText(f"共 {len(records)} 条记录")
+        self.status_label.setText(tr("history.total_records").format(count=len(records)))
         
         # 隐藏进度条
         self.progress_bar.setVisible(False)

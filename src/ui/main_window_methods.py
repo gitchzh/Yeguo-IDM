@@ -768,21 +768,29 @@ class VideoDownloaderMethods:
             # 检查是否已经处理过这个视频
             video_id = info.get("id", "")
             webpage_url = info.get("webpage_url", url)
+            video_title = info.get("title", "未知标题")
+            
+            # 添加调试日志
+            logger.info(f"处理视频解析结果: {video_title}")
+            logger.info(f"  - Video ID: {video_id}")
+            logger.info(f"  - Webpage URL: {webpage_url}")
+            logger.info(f"  - Original URL: {url}")
             
             # 检查是否已经缓存过这个视频
             if webpage_url in self.parse_cache:
-                logger.info(f"视频已存在，跳过重复处理: {video_id}")
+                logger.info(f"视频已存在缓存中，跳过重复处理: {video_title} (URL: {webpage_url})")
                 return
             
             with self._cache_lock:
                 self.parse_cache[webpage_url] = info
                 if len(self.parse_cache) > Config.CACHE_LIMIT:
                     self.parse_cache.popitem()
+                logger.info(f"视频已添加到缓存: {video_title}")
 
             # 立即处理并显示当前视频的解析结果
             self.on_parse_finished(info)
             
-            logger.info(f"视频解析完成: {info.get('title', '未知标题')}")
+            logger.info(f"视频解析完成: {video_title}")
             
         except Exception as e:
             logger.error(f"处理视频解析结果失败: {str(e)}")
@@ -1049,6 +1057,15 @@ class VideoDownloaderMethods:
         if self._is_video_already_added(video_id, video_title):
             logger.info(f"视频已存在，跳过重复添加: {video_title} (ID: {video_id})")
             return
+        
+        logger.info(f"开始处理视频: {video_title} (ID: {video_id})")
+        
+        # 强制添加调试信息
+        logger.info(f"🔍 强制调试信息:")
+        logger.info(f"  - 视频标题: {video_title}")
+        logger.info(f"  - 视频ID: {video_id}")
+        logger.info(f"  - 网页URL: {info.get('webpage_url', '未知')}")
+        logger.info(f"  - 格式数量: {len(info.get('formats', []))}")
             
         audio_format = None
         audio_filesize = 0
@@ -1091,6 +1108,7 @@ class VideoDownloaderMethods:
 
 
         # 处理格式信息
+        valid_format_count = 0
         for f in filtered_formats:
             format_id = f.get("format_id")
             resolution = self.get_resolution(f)
@@ -1098,9 +1116,10 @@ class VideoDownloaderMethods:
             acodec = f.get("acodec", "none")
             filesize = f.get("filesize") or f.get("filesize_approx")
             vbr = f.get("vbr", 0)
+            vcodec = f.get("vcodec", "none")
             
             # 调试信息：记录每个格式的详细信息
-            logger.info(f"格式 {format_id}: resolution={resolution}, ext={ext}, acodec={acodec}, vbr={vbr}, filesize={filesize}, width={f.get('width')}, height={f.get('height')}, format_note={f.get('format_note')}")
+            logger.info(f"格式 {format_id}: resolution={resolution}, ext={ext}, acodec={acodec}, vbr={vbr}, filesize={filesize}, vcodec={vcodec}, width={f.get('width')}, height={f.get('height')}, format_note={f.get('format_note')}")
 
             # 计算文件大小
             if not filesize:
@@ -1116,7 +1135,7 @@ class VideoDownloaderMethods:
                 audio_filesize = filesize if filesize else 0
                 
             # 收集视频格式 - 每个分辨率只保留最优格式
-            elif resolution != tr("main_window.unknown") and f.get("vcodec", "none") != "none":
+            elif resolution != tr("main_window.unknown") and vcodec != "none":
                 # 跳过Premium格式和其他可能不可用的格式
                 format_note = f.get("format_note", "").lower()
                 if "premium" in format_note or "membership" in format_note or "paid" in format_note:
@@ -1129,12 +1148,21 @@ class VideoDownloaderMethods:
                         "format_id": format_id,
                         "ext": ext,
                         "filesize": filesize if filesize else 0,
-                        "vcodec": f.get("vcodec", "none")
+                        "vcodec": vcodec
                     }
-                    logger.info(f"更新最优视频格式: {resolution} -> {format_id} (大小: {filesize})")
+                    valid_format_count += 1
+                    logger.info(f"✅ 更新最优视频格式: {resolution} -> {format_id} (大小: {filesize})")
             else:
-                logger.info(f"跳过格式 {format_id}: resolution={resolution}, vbr={vbr}, vcodec={f.get('vcodec', 'none')}")
+                logger.info(f"❌ 跳过格式 {format_id}: resolution={resolution}, vbr={vbr}, vcodec={vcodec}")
+        
+        logger.info(f"📊 视频 '{formatted_title}' 有效格式统计: {valid_format_count} 个有效格式")
 
+        # 检查是否有有效格式
+        if not video_formats:
+            logger.warning(f"⚠️ 视频 '{formatted_title}' 没有有效格式，跳过添加到格式树")
+            self.update_scroll_status(f"⚠️ 跳过无格式视频: {formatted_title}")
+            return
+        
         # 创建分辨率分组和视频项
         logger.info(f"视频 '{formatted_title}' 将被添加到以下分辨率: {list(video_formats.keys())}")
         
@@ -1200,7 +1228,7 @@ class VideoDownloaderMethods:
             if audio_format:
                 format_id = f"{format_id}+{audio_format}"
                 
-            self.formats.append({
+            format_info = {
                 "video_id": video_id,
                 "format_id": format_id,
                 "description": f"{filename}.mp4",
@@ -1209,7 +1237,9 @@ class VideoDownloaderMethods:
                 "filesize": total_size,
                 "url": info.get("webpage_url", ""),
                 "item": video_item
-            })
+            }
+            self.formats.append(format_info)
+            logger.info(f"添加格式到列表: {format_info['description']} (URL: {format_info['url']})")
         
         # 记录当前分辨率分类的统计信息
         current_counts = {}
@@ -1217,6 +1247,13 @@ class VideoDownloaderMethods:
             item = self.format_tree.topLevelItem(i)
             res_name = item.text(0)  # 分辨率名称在第0列
             current_counts[res_name] = item.childCount()
+            logger.info(f"分辨率分组 '{res_name}' 包含 {item.childCount()} 个视频")
+            
+            # 调试：列出该分辨率分组下的所有视频
+            for j in range(item.childCount()):
+                child_item = item.child(j)
+                child_name = child_item.text(0)
+                logger.info(f"  - 视频: {child_name}")
         
         logger.info(f"当前分辨率分类统计: {current_counts}")
         
@@ -1728,20 +1765,28 @@ class VideoDownloaderMethods:
         try:
             def collect_checked_items(tree_item: QTreeWidgetItem) -> List[Dict]:
                 checked_items = []
+                item_name = tree_item.text(0)
+                logger.info(f"检查树项: {item_name}, 子项数量: {tree_item.childCount()}, 选中状态: {tree_item.checkState(0)}")
+                
                 # 检查当前项目本身（用于网易云音乐等直接添加的项目）
                 if tree_item.checkState(0) == Qt.Checked and tree_item.childCount() == 0:
                     for fmt in self.formats:
                         if fmt["item"] == tree_item:
+                            logger.info(f"找到选中的直接项目: {fmt.get('description', '未知')}")
                             checked_items.append(fmt)
                     return checked_items
                 # 检查子项目（用于视频等有层次结构的项目）
                 for i in range(tree_item.childCount()):
                     child = tree_item.child(i)
-                    if child.checkState(0) == Qt.Checked and child.childCount() == 0:  # 复选框在第0列
+                    child_name = child.text(0)
+                    child_checked = child.checkState(0) == Qt.Checked
+                    logger.info(f"检查子项 {i}: {child_name}, 选中状态: {child_checked}")
+                    
+                    if child_checked and child.childCount() == 0:  # 复选框在第0列
                         for fmt in self.formats:
                             if fmt["item"] == child:
+                                logger.info(f"找到选中的子项目: {fmt.get('description', '未知')}")
                                 checked_items.append(fmt)
-                        break
                     elif child.childCount() > 0:
                         checked_items.extend(collect_checked_items(child))
                 return checked_items
@@ -1751,6 +1796,17 @@ class VideoDownloaderMethods:
                 selected_formats.extend(collect_checked_items(top_item))
 
             if not selected_formats:
+                # 调试：显示格式树的状态
+                logger.info("没有选中任何格式，显示格式树状态:")
+                for i in range(self.format_tree.topLevelItemCount()):
+                    top_item = self.format_tree.topLevelItem(i)
+                    res_name = top_item.text(0)
+                    logger.info(f"分辨率分组 '{res_name}': 选中状态={top_item.checkState(0)}")
+                    for j in range(top_item.childCount()):
+                        child_item = top_item.child(j)
+                        child_name = child_item.text(0)
+                        logger.info(f"  - 视频 '{child_name}': 选中状态={child_item.checkState(0)}")
+                
                 QMessageBox.warning(self, "提示", "请选择要下载的格式")
                 return
 
@@ -1778,13 +1834,18 @@ class VideoDownloaderMethods:
             logger.info("开始下载...")
             self.update_status_bar("开始下载...", "准备中", f"选中: {len(selected_formats)} 个文件")
 
-            for fmt in selected_formats:
+            logger.info(f"开始处理 {len(selected_formats)} 个选中的格式")
+            for i, fmt in enumerate(selected_formats):
+                logger.info(f"处理格式 {i+1}/{len(selected_formats)}: {fmt.get('description', '未知')}")
+                
                 if self.active_downloads < Config.MAX_CONCURRENT_DOWNLOADS:
                     # 对于网易云音乐，使用原始URL而不是fmt["url"]
                     download_url = fmt.get("original_url", fmt["url"]) if fmt.get("type") == "netease_music" else fmt["url"]
+                    logger.info(f"立即启动下载: {fmt.get('description', '未知')}")
                     self.start_download(download_url, fmt)
-            else:
+                else:
                     download_url = fmt.get("original_url", fmt["url"]) if fmt.get("type") == "netease_music" else fmt["url"]
+                    logger.info(f"添加到下载队列: {fmt.get('description', '未知')}")
                     self.download_queue.append((download_url, fmt))
                 
         except Exception as e:
@@ -2152,6 +2213,8 @@ class VideoDownloaderMethods:
             else:
                 # 还有文件在下载，更新状态
                 self.update_status_bar(f"下载完成: {os.path.basename(filename) if filename else '未知文件'}", "", "")
+                # 处理下载队列中的剩余任务
+                self._process_download_queue()
         
         QTimer.singleShot(100, cleanup_after_delay)
     
@@ -2514,10 +2577,11 @@ class VideoDownloaderMethods:
         """处理下载队列中的任务"""
         try:
             while len(self.download_queue) > 0 and self.active_downloads < Config.MAX_CONCURRENT_DOWNLOADS:
-                url, fmt = self.download_queue.pop(0)
+                url, fmt = self.download_queue.popleft()
                 # 对于网易云音乐，使用原始URL而不是队列中的URL
                 download_url = fmt.get("original_url", url) if fmt.get("type") == "netease_music" else url
                 self.start_download(download_url, fmt)
+                logger.info(f"从队列启动下载: {fmt.get('title', '未知标题')}")
         except Exception as e:
             logger.error(f"处理下载队列失败: {str(e)}")
 
@@ -2547,15 +2611,28 @@ class VideoDownloaderMethods:
         msg_box.button(QMessageBox.No).setText(tr("messages.no"))
         reply = msg_box.exec_()
         if reply == QMessageBox.Yes:
+            # 立即取消所有下载工作线程
             for worker in self.download_workers:
                 if worker.isRunning():
                     worker.cancel()
+                    # 强制终止线程，确保立即停止
+                    worker.terminate()
+                    worker.wait(1000)  # 等待最多1秒
+            
             # 取消网易云音乐解析工作线程
             for worker in self.netease_music_workers:
                 if worker.isRunning():
                     worker.cancel()
+                    # 强制终止线程
+                    worker.terminate()
+                    worker.wait(1000)  # 等待最多1秒
+            
+            # 清空下载队列
             self.download_queue.clear()
+            
+            # 重置下载状态
             self.reset_download_state()
+            
             logger.info("下载已取消")
             self.update_status_bar("下载已取消", "", "")
 
@@ -2798,8 +2875,8 @@ class VideoDownloaderMethods:
             # 确认对话框
             reply = QMessageBox.question(
                 self, 
-                "确认清空", 
-                "确定要清空所有列表吗？\n此操作将清除所有已解析的视频格式信息。",
+                tr("settings.confirm_clear_list"), 
+                tr("settings.clear_list_message"),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No
             )
@@ -3356,21 +3433,53 @@ class VideoDownloaderMethods:
     def _is_video_already_added(self, video_id: str, video_title: str) -> bool:
         """检查视频是否已经添加到树形控件中"""
         try:
+            logger.info(f"🔍 检查视频重复: {video_title} (ID: {video_id})")
+            
+            # 提取当前视频的P数信息
+            current_p_match = re.search(r'[Pp](\d+)', video_title)
+            current_p = current_p_match.group(1) if current_p_match else None
+            logger.info(f"  - 当前视频P数: {current_p}")
+            
             # 遍历所有分辨率分组，检查是否已存在相同标题的视频
             for i in range(self.format_tree.topLevelItemCount()):
                 root_item = self.format_tree.topLevelItem(i)
+                res_name = root_item.text(0)
+                logger.info(f"  - 检查分辨率分组: {res_name}")
+                
                 for j in range(root_item.childCount()):
                     child_item = root_item.child(j)
                     filename = child_item.text(1)  # 文件名在第1列
+                    logger.info(f"    - 已存在文件: {filename}")
                     
-                    # 检查文件名是否包含相同的视频标题（去掉分辨率后缀）
-                    if video_title in filename or video_id in filename:
-                        return True
+                    # 对于B站多P视频，需要更精确的匹配
+                    if current_p:
+                        # 提取已存在视频的P数
+                        existing_p_match = re.search(r'[Pp](\d+)', filename)
+                        existing_p = existing_p_match.group(1) if existing_p_match else None
+                        logger.info(f"      - 已存在文件P数: {existing_p}")
+                        
+                        # 如果都有P数，比较P数是否相同
+                        if existing_p and current_p == existing_p:
+                            logger.info(f"❌ 发现重复的P{current_p}视频: {video_title}")
+                            return True
+                        # 如果当前有P数但已存在的没有，或者P数不同，则不是重复
+                        elif existing_p and current_p != existing_p:
+                            logger.info(f"✅ P数不同，不是重复: {current_p} vs {existing_p}")
+                            continue
                     
-                    # 检查是否包含相同的视频ID
-                    if video_id != "unknown" and video_id in filename:
-                        return True
+                    # 对于没有P数的视频，使用原来的逻辑
+                    if not current_p:
+                        # 检查文件名是否包含相同的视频标题（去掉分辨率后缀）
+                        if video_title in filename or video_id in filename:
+                            logger.info(f"❌ 发现重复视频（无P数）: {video_title}")
+                            return True
+                        
+                        # 检查是否包含相同的视频ID
+                        if video_id != "unknown" and video_id in filename:
+                            logger.info(f"❌ 发现重复视频ID: {video_id}")
+                            return True
             
+            logger.info(f"✅ 视频不是重复: {video_title}")
             return False
         except Exception as e:
             logger.error(f"检查视频重复时出错: {e}")

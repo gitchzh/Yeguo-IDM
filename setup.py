@@ -144,7 +144,13 @@ hiddenimports = [
     'win32api',
     'win32con',
     'win32gui',
-    'win32process'
+    'win32process',
+    # 添加tkinter相关模块
+    'tkinter',
+    '_tkinter',
+    'tkinter.messagebox',
+    'tkinter.filedialog',
+    'tkinter.simpledialog'
 ]
 
 a = Analysis(
@@ -165,6 +171,37 @@ a = Analysis(
     cipher=block_cipher,
     noarchive=False,
 )
+
+# 添加Tcl/Tk数据文件支持
+import tkinter
+import os
+import sys
+
+# 获取tkinter路径
+tkinter_path = os.path.dirname(tkinter.__file__)
+tcl_path = os.path.join(tkinter_path, 'tcl')
+
+# 添加Tcl数据文件
+if os.path.exists(tcl_path):
+    a.datas += [(tcl_path, 'tcl')]
+
+# 添加Tk数据文件（如果存在）
+tk_path = os.path.join(tkinter_path, 'tk')
+if os.path.exists(tk_path):
+    a.datas += [(tk_path, 'tk')]
+
+# 添加Tcl/Tk DLL文件
+try:
+    import _tkinter
+    tkinter_dll_path = os.path.dirname(_tkinter.__file__)
+    # 查找tcl和tk的DLL文件
+    for file in os.listdir(tkinter_dll_path):
+        if file.startswith(('tcl', 'tk')) and file.endswith(('.dll', '.so')):
+            dll_path = os.path.join(tkinter_dll_path, file)
+            if os.path.exists(dll_path):
+                a.binaries += [(file, dll_path, 'BINARY')]
+except ImportError:
+    pass
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 

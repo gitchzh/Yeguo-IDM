@@ -26,7 +26,7 @@ class Config:
     """
     
     # 最大并发下载数量，避免过多线程影响系统性能
-    MAX_CONCURRENT_DOWNLOADS = 2
+    MAX_CONCURRENT_DOWNLOADS = 5
     
     # 解析结果缓存限制，避免内存占用过多
     CACHE_LIMIT = 20  # 增加缓存限制，但添加内存监控
