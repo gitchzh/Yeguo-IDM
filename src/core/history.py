@@ -122,6 +122,7 @@ class HistoryManager:
     
     def _execute_query(self, query: str, params: tuple = None, fetch_one: bool = False, fetch_all: bool = False):
         """执行数据库查询的通用方法"""
+        cursor = None
         try:
             with self._lock:
                 cursor = self._get_cursor()
@@ -141,6 +142,13 @@ class HistoryManager:
             from src.utils.logger import logger
             logger.error(f"数据库查询失败: {e}")
             return None
+        finally:
+            # 确保游标被正确关闭
+            if cursor:
+                try:
+                    cursor.close()
+                except Exception:
+                    pass
     
     def add_record(self, record: DownloadRecord) -> int:
         """添加下载记录"""
@@ -377,13 +385,20 @@ class HistoryManager:
     
     def close(self):
         """关闭数据库连接"""
-        if hasattr(self, '_conn') and self._conn:
-            self._conn.close()
-            self._conn = None
+        try:
+            if hasattr(self, '_conn') and self._conn:
+                self._conn.close()
+                self._conn = None
+        except Exception as e:
+            from src.utils.logger import logger
+            logger.error(f"关闭数据库连接失败: {e}")
     
     def __del__(self):
         """析构函数，确保连接被关闭"""
-        self.close()
+        try:
+            self.close()
+        except Exception:
+            pass
     
     def _row_to_record(self, row: Tuple) -> DownloadRecord:
         """将数据库行转换为DownloadRecord对象"""

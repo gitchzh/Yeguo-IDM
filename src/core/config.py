@@ -11,10 +11,10 @@
 - Config: 应用程序全局配置类
 
 作者: 椰果IDM开发团队
-版本: 1.5.0
+版本: 1.6.0
 """
 
-from typing import Optional
+from typing import Optional, Dict, Any, List, Tuple
 
 
 class Config:
@@ -23,6 +23,35 @@ class Config:
     
     包含应用程序运行所需的各种配置参数，如并发下载数、缓存限制等。
     所有配置项都集中在此类中管理，便于维护和修改。
+    
+    Attributes:
+        MAX_CONCURRENT_DOWNLOADS (int): 最大并发下载数量
+        CACHE_LIMIT (int): 解析结果缓存限制
+        MEMORY_WARNING_THRESHOLD (int): 内存使用警告阈值（MB）
+        MEMORY_CRITICAL_THRESHOLD (int): 内存使用临界阈值（MB）
+        DEFAULT_SPEED_LIMIT (Optional[int]): 默认下载速度限制（KB/s）
+        APP_VERSION (str): 应用程序版本号
+        MAX_FILENAME_LENGTH (int): 文件名最大长度限制
+        MAX_THREAD_WAIT_TIME (int): 线程最大等待时间（秒）
+        THREAD_CLEANUP_INTERVAL (int): 线程清理间隔（秒）
+        MAX_RETRY_ATTEMPTS (int): 最大重试次数
+        RETRY_DELAY (int): 重试延迟（秒）
+        DEFAULT_TIMEOUT (int): 默认超时时间（秒）
+        YOUTUBE_TIMEOUT (int): YouTube超时时间（秒）
+        BILIBILI_TIMEOUT (int): B站超时时间（秒）
+        NETWORK_TIMEOUTS (Dict[str, int]): 网络超时配置
+        SMART_TIMEOUT_ENABLED (bool): 是否启用智能超时
+        TIMEOUT_ADAPTATION_FACTOR (float): 超时自适应因子
+        MIN_TIMEOUT (int): 最小超时时间（秒）
+        MAX_TIMEOUT (int): 最大超时时间（秒）
+        STARTUP_SHOW_WARNINGS (bool): 启动时是否显示警告信息
+        MAX_FILE_ATTEMPTS (int): 文件名冲突最大尝试次数
+        FILE_OPERATION_TIMEOUT (int): 文件操作超时时间（秒）
+        DEFAULT_USER_AGENT (str): 默认用户代理
+        MAX_REDIRECTS (int): 最大重定向次数
+        LOG_FILE_MAX_SIZE (int): 日志文件最大大小（字节）
+        LOG_BACKUP_COUNT (int): 日志备份文件数量
+        LOG_LEVEL (str): 默认日志级别
     """
     
     # 最大并发下载数量，避免过多线程影响系统性能
@@ -39,7 +68,7 @@ class Config:
     DEFAULT_SPEED_LIMIT: Optional[int] = None
     
     # 应用程序版本号
-    APP_VERSION = "1.5.0"
+    APP_VERSION = "1.6.0"
     
     # 文件名最大长度限制，避免系统文件名过长问题
     MAX_FILENAME_LENGTH = 200
@@ -77,10 +106,23 @@ class Config:
     
     # 启动配置
     STARTUP_SHOW_WARNINGS = False   # 启动时是否显示警告信息
+    
+    # 文件操作配置
+    MAX_FILE_ATTEMPTS = 100  # 文件名冲突最大尝试次数
+    FILE_OPERATION_TIMEOUT = 30  # 文件操作超时时间（秒）
+    
+    # 网络配置
+    DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    MAX_REDIRECTS = 5  # 最大重定向次数
+    
+    # 日志配置
+    LOG_FILE_MAX_SIZE = 10 * 1024 * 1024  # 日志文件最大大小（10MB）
+    LOG_BACKUP_COUNT = 5  # 日志备份文件数量
+    LOG_LEVEL = "INFO"  # 默认日志级别
 
     
     @classmethod
-    def validate_config(cls) -> tuple[bool, list[str]]:
+    def validate_config(cls) -> Tuple[bool, List[str]]:
         """
         验证配置参数的有效性 - 改进版本
         
@@ -91,22 +133,30 @@ class Config:
         
         try:
             # 验证数值配置
-            if cls.MAX_CONCURRENT_DOWNLOADS <= 0:
+            if not isinstance(cls.MAX_CONCURRENT_DOWNLOADS, int):
+                errors.append(f"MAX_CONCURRENT_DOWNLOADS 必须是整数，当前类型: {type(cls.MAX_CONCURRENT_DOWNLOADS)}")
+            elif cls.MAX_CONCURRENT_DOWNLOADS <= 0:
                 errors.append(f"MAX_CONCURRENT_DOWNLOADS 必须大于0，当前值: {cls.MAX_CONCURRENT_DOWNLOADS}")
             elif cls.MAX_CONCURRENT_DOWNLOADS > 10:
                 errors.append(f"MAX_CONCURRENT_DOWNLOADS 建议不超过10，当前值: {cls.MAX_CONCURRENT_DOWNLOADS}")
             
-            if cls.CACHE_LIMIT <= 0:
+            if not isinstance(cls.CACHE_LIMIT, int):
+                errors.append(f"CACHE_LIMIT 必须是整数，当前类型: {type(cls.CACHE_LIMIT)}")
+            elif cls.CACHE_LIMIT <= 0:
                 errors.append(f"CACHE_LIMIT 必须大于0，当前值: {cls.CACHE_LIMIT}")
             elif cls.CACHE_LIMIT > 100:
                 errors.append(f"CACHE_LIMIT 建议不超过100，当前值: {cls.CACHE_LIMIT}")
             
-            if cls.MEMORY_WARNING_THRESHOLD <= 0:
+            if not isinstance(cls.MEMORY_WARNING_THRESHOLD, int):
+                errors.append(f"MEMORY_WARNING_THRESHOLD 必须是整数，当前类型: {type(cls.MEMORY_WARNING_THRESHOLD)}")
+            elif cls.MEMORY_WARNING_THRESHOLD <= 0:
                 errors.append(f"MEMORY_WARNING_THRESHOLD 必须大于0，当前值: {cls.MEMORY_WARNING_THRESHOLD}")
             elif cls.MEMORY_WARNING_THRESHOLD > 2000:
                 errors.append(f"MEMORY_WARNING_THRESHOLD 建议不超过2000MB，当前值: {cls.MEMORY_WARNING_THRESHOLD}")
             
-            if cls.MEMORY_CRITICAL_THRESHOLD <= 0:
+            if not isinstance(cls.MEMORY_CRITICAL_THRESHOLD, int):
+                errors.append(f"MEMORY_CRITICAL_THRESHOLD 必须是整数，当前类型: {type(cls.MEMORY_CRITICAL_THRESHOLD)}")
+            elif cls.MEMORY_CRITICAL_THRESHOLD <= 0:
                 errors.append(f"MEMORY_CRITICAL_THRESHOLD 必须大于0，当前值: {cls.MEMORY_CRITICAL_THRESHOLD}")
             elif cls.MEMORY_CRITICAL_THRESHOLD > 5000:
                 errors.append(f"MEMORY_CRITICAL_THRESHOLD 建议不超过5000MB，当前值: {cls.MEMORY_CRITICAL_THRESHOLD}")
@@ -114,37 +164,57 @@ class Config:
             if cls.MEMORY_CRITICAL_THRESHOLD <= cls.MEMORY_WARNING_THRESHOLD:
                 errors.append(f"MEMORY_CRITICAL_THRESHOLD ({cls.MEMORY_CRITICAL_THRESHOLD}) 必须大于 MEMORY_WARNING_THRESHOLD ({cls.MEMORY_WARNING_THRESHOLD})")
             
-            if cls.MAX_FILENAME_LENGTH <= 0:
+            if not isinstance(cls.MAX_FILENAME_LENGTH, int):
+                errors.append(f"MAX_FILENAME_LENGTH 必须是整数，当前类型: {type(cls.MAX_FILENAME_LENGTH)}")
+            elif cls.MAX_FILENAME_LENGTH <= 0:
                 errors.append(f"MAX_FILENAME_LENGTH 必须大于0，当前值: {cls.MAX_FILENAME_LENGTH}")
             elif cls.MAX_FILENAME_LENGTH > 500:
                 errors.append(f"MAX_FILENAME_LENGTH 建议不超过500，当前值: {cls.MAX_FILENAME_LENGTH}")
             
-            if cls.MAX_THREAD_WAIT_TIME <= 0:
+            if not isinstance(cls.MAX_THREAD_WAIT_TIME, int):
+                errors.append(f"MAX_THREAD_WAIT_TIME 必须是整数，当前类型: {type(cls.MAX_THREAD_WAIT_TIME)}")
+            elif cls.MAX_THREAD_WAIT_TIME <= 0:
                 errors.append(f"MAX_THREAD_WAIT_TIME 必须大于0，当前值: {cls.MAX_THREAD_WAIT_TIME}")
             elif cls.MAX_THREAD_WAIT_TIME > 300:
                 errors.append(f"MAX_THREAD_WAIT_TIME 建议不超过300秒，当前值: {cls.MAX_THREAD_WAIT_TIME}")
             
-            if cls.THREAD_CLEANUP_INTERVAL <= 0:
+            if not isinstance(cls.THREAD_CLEANUP_INTERVAL, int):
+                errors.append(f"THREAD_CLEANUP_INTERVAL 必须是整数，当前类型: {type(cls.THREAD_CLEANUP_INTERVAL)}")
+            elif cls.THREAD_CLEANUP_INTERVAL <= 0:
                 errors.append(f"THREAD_CLEANUP_INTERVAL 必须大于0，当前值: {cls.THREAD_CLEANUP_INTERVAL}")
             elif cls.THREAD_CLEANUP_INTERVAL > 600:
                 errors.append(f"THREAD_CLEANUP_INTERVAL 建议不超过600秒，当前值: {cls.THREAD_CLEANUP_INTERVAL}")
             
-            if cls.MAX_RETRY_ATTEMPTS <= 0:
+            if not isinstance(cls.MAX_RETRY_ATTEMPTS, int):
+                errors.append(f"MAX_RETRY_ATTEMPTS 必须是整数，当前类型: {type(cls.MAX_RETRY_ATTEMPTS)}")
+            elif cls.MAX_RETRY_ATTEMPTS <= 0:
                 errors.append(f"MAX_RETRY_ATTEMPTS 必须大于0，当前值: {cls.MAX_RETRY_ATTEMPTS}")
             elif cls.MAX_RETRY_ATTEMPTS > 10:
                 errors.append(f"MAX_RETRY_ATTEMPTS 建议不超过10，当前值: {cls.MAX_RETRY_ATTEMPTS}")
             
-            if cls.RETRY_DELAY < 0:
+            if not isinstance(cls.RETRY_DELAY, (int, float)):
+                errors.append(f"RETRY_DELAY 必须是数字，当前类型: {type(cls.RETRY_DELAY)}")
+            elif cls.RETRY_DELAY < 0:
                 errors.append(f"RETRY_DELAY 不能为负数，当前值: {cls.RETRY_DELAY}")
             elif cls.RETRY_DELAY > 60:
                 errors.append(f"RETRY_DELAY 建议不超过60秒，当前值: {cls.RETRY_DELAY}")
             
-            if cls.DEFAULT_TIMEOUT <= 0:
+            if not isinstance(cls.DEFAULT_TIMEOUT, int):
+                errors.append(f"DEFAULT_TIMEOUT 必须是整数，当前类型: {type(cls.DEFAULT_TIMEOUT)}")
+            elif cls.DEFAULT_TIMEOUT <= 0:
                 errors.append(f"DEFAULT_TIMEOUT 必须大于0，当前值: {cls.DEFAULT_TIMEOUT}")
             elif cls.DEFAULT_TIMEOUT > 600:
                 errors.append(f"DEFAULT_TIMEOUT 建议不超过600秒，当前值: {cls.DEFAULT_TIMEOUT}")
             
-            
+            # 验证网络超时配置
+            if not isinstance(cls.NETWORK_TIMEOUTS, dict):
+                errors.append(f"NETWORK_TIMEOUTS 必须是字典，当前类型: {type(cls.NETWORK_TIMEOUTS)}")
+            else:
+                for key, value in cls.NETWORK_TIMEOUTS.items():
+                    if not isinstance(value, (int, float)):
+                        errors.append(f"NETWORK_TIMEOUTS['{key}'] 必须是数字，当前类型: {type(value)}")
+                    elif value <= 0:
+                        errors.append(f"NETWORK_TIMEOUTS['{key}'] 必须大于0，当前值: {value}")
             
             # 验证版本号格式
             if not cls.APP_VERSION or not isinstance(cls.APP_VERSION, str):
@@ -159,7 +229,7 @@ class Config:
             return False, errors
     
     @classmethod
-    def get_config_summary(cls) -> dict:
+    def get_config_summary(cls) -> Dict[str, Any]:
         """
         获取配置摘要信息
         

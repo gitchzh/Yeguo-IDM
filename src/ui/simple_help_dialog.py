@@ -17,7 +17,7 @@ Technical Features:
 
 Author: Yeguo IDM Development Team
 Contact Email: gmrchzh@gmail.com
-Version: 1.5.0
+Version: 1.6.0
 Created: September 7, 2025
 """
 

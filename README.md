@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyQt5](https://img.shields.io/badge/PyQt5-5.15+-green.svg)](https://pypi.org/project/PyQt5/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.5.0-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.6.0-orange.svg)](CHANGELOG.md)
 
 > 🚀 基于PyQt5开发的现代化视频下载管理器，支持多平台视频解析和批量下载
 

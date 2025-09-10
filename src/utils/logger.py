@@ -23,21 +23,42 @@ import threading
 from datetime import datetime
 from PyQt5.QtCore import pyqtSignal, QObject, QTimer, QThread
 
-# 全局状态栏更新信号
-status_bar_signal = None
-status_bar_signal_lock = threading.Lock()
+# 线程安全的状态栏信号管理器
+class StatusBarSignalManager:
+    """线程安全的状态栏信号管理器"""
+    
+    _instance = None
+    _lock = threading.Lock()
+    
+    def __new__(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._instance._signal = None
+                    cls._instance._signal_lock = threading.Lock()
+        return cls._instance
+    
+    def set_signal(self, signal):
+        """设置状态栏更新信号"""
+        with self._signal_lock:
+            self._signal = signal
+    
+    def get_signal(self):
+        """获取状态栏更新信号"""
+        with self._signal_lock:
+            return self._signal
+
+# 全局信号管理器实例
+_signal_manager = StatusBarSignalManager()
 
 def set_status_bar_signal(signal):
     """设置状态栏更新信号"""
-    global status_bar_signal
-    with status_bar_signal_lock:
-        status_bar_signal = signal
+    _signal_manager.set_signal(signal)
 
 def get_status_bar_signal():
     """获取状态栏更新信号"""
-    global status_bar_signal
-    with status_bar_signal_lock:
-        return status_bar_signal
+    return _signal_manager.get_signal()
 
 class StatusBarHandler(logging.Handler):
     """状态栏日志处理器 - 线程安全版本"""

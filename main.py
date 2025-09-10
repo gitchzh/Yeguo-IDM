@@ -14,7 +14,7 @@
 - 日志记录和错误处理
 
 作者: 椰果IDM开发团队
-版本: 1.5.0
+版本: 1.6.0
 """
 
 import sys
@@ -49,7 +49,7 @@ def main() -> None:
         
         # 设置应用程序信息
         app.setApplicationName("椰果IDM")
-        app.setApplicationVersion("1.5.0")
+        app.setApplicationVersion("1.6.0")
         app.setOrganizationName("椰果IDM开发团队")
         
         # 设置应用程序图标 - 确保系统任务栏显示正确图标

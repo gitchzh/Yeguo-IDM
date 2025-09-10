@@ -103,6 +103,13 @@ class VideoDownloader(QMainWindow, VideoDownloaderMethods):
             logger.info(f"应用图标已设置: {icon_path}")
         else:
             logger.warning(f"图标文件未找到: {icon_path}")
+        
+        # 设置更新源优先级（码云优先）
+        from ..core.update_manager import update_manager
+        update_manager.set_gitee_priority(True)
+        
+        # 启动时自动检查更新（延迟3秒，避免影响启动速度）
+        QTimer.singleShot(3000, self.auto_check_updates)
     
     def get_icon_path(self) -> str:
         """获取图标文件路径"""
@@ -1098,6 +1105,13 @@ class VideoDownloader(QMainWindow, VideoDownloaderMethods):
         help_action = help_menu.addAction(tr('menu.help_content'))
         help_action.setShortcut('F1')
         help_action.triggered.connect(self.show_help_dialog)
+        
+        help_menu.addSeparator()
+        
+        # 检查更新
+        update_action = help_menu.addAction(tr('menu.check_update'))
+        update_action.setShortcut('Ctrl+U')
+        update_action.triggered.connect(self.check_for_updates)
         
         help_menu.addSeparator()
         

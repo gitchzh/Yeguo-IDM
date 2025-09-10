@@ -279,7 +279,7 @@ class BuildExeCommand(Command):
 # 项目配置
 setup(
     name="ygmdm",
-    version="1.0.0",
+    version="1.6.0",
     author="椰果IDM开发团队",
     author_email="team@yeguo.com",
     description="椰果下载器 - 支持多种下载协议的多功能下载管理器",

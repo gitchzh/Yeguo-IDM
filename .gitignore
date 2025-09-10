@@ -116,12 +116,25 @@ ehthumbs.db
 Thumbs.db
 
 # Project specific
+*.log
 app.log
-logs_backup/
 download_history.db
-*.exe
-*.dmg
-*.AppImage
+logs_backup/
+*.mp4
+*.mp3
+*.avi
+*.mkv
+*.flv
+*.wmv
+*.mov
+*.m4v
+*.webm
+*.ogg
+*.wav
+*.flac
+*.aac
+*.m4a
+*.wma
 
 # Temporary files
 *.tmp
@@ -132,20 +145,15 @@ download_history.db
 # Build artifacts
 build/
 dist/
-*.egg-info/
+*.exe
+*.msi
+*.deb
+*.rpm
+*.dmg
+*.pkg
+*.app
 
-# PyQt
-*.ui.bak
-
-# FFmpeg
-ffmpeg.exe
-ffprobe.exe
-
-# Test files
-test_*.py
-*_test.py
-tests/
-
-# Documentation
-docs/
-*.md.bak
+# Configuration files with sensitive data
+config.ini
+settings.ini
+secrets.json

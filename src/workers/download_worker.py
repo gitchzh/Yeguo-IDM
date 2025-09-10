@@ -43,25 +43,31 @@ class DownloadWorker(QThread):
         self._download_completed = False
         self._ydl_instance = None  # 保存yt-dlp实例引用
         self._cancel_check_thread = None  # 取消检查线程
+        self._resource_lock = threading.Lock()  # 资源管理锁
     
     def cancel(self):
         """取消下载"""
         self._is_cancelled = True
         self.log_signal.emit("正在取消下载...")
         
-        # 如果有活跃的yt-dlp实例，尝试中断它
-        if self._ydl_instance is not None:
-            try:
-                # 尝试中断yt-dlp下载
-                if hasattr(self._ydl_instance, 'cancel'):
-                    self._ydl_instance.cancel()
-                self.log_signal.emit("yt-dlp下载已中断")
-            except Exception as e:
-                self.log_signal.emit(f"中断yt-dlp下载时出错: {str(e)}")
-        
-        # 停止取消检查线程
-        if self._cancel_check_thread and self._cancel_check_thread.is_alive():
-            self._cancel_check_thread = None
+        # 线程安全地清理资源
+        with self._resource_lock:
+            # 如果有活跃的yt-dlp实例，尝试中断它
+            if self._ydl_instance is not None:
+                try:
+                    # 尝试中断yt-dlp下载
+                    if hasattr(self._ydl_instance, 'cancel'):
+                        self._ydl_instance.cancel()
+                    self.log_signal.emit("yt-dlp下载已中断")
+                except Exception as e:
+                    self.log_signal.emit(f"中断yt-dlp下载时出错: {str(e)}")
+                finally:
+                    # 确保实例被清理
+                    self._ydl_instance = None
+            
+            # 停止取消检查线程
+            if self._cancel_check_thread and self._cancel_check_thread.is_alive():
+                self._cancel_check_thread = None
     
     def pause(self):
         """暂停下载"""
@@ -70,6 +76,23 @@ class DownloadWorker(QThread):
     def resume(self):
         """恢复下载"""
         self._is_paused = False
+    
+    def cleanup_resources(self):
+        """清理资源"""
+        with self._resource_lock:
+            # 清理yt-dlp实例
+            if self._ydl_instance is not None:
+                try:
+                    if hasattr(self._ydl_instance, 'close'):
+                        self._ydl_instance.close()
+                except Exception as e:
+                    self.log_signal.emit(f"清理yt-dlp实例时出错: {str(e)}")
+                finally:
+                    self._ydl_instance = None
+            
+            # 清理取消检查线程
+            if self._cancel_check_thread and self._cancel_check_thread.is_alive():
+                self._cancel_check_thread = None
     
     def _start_cancel_check(self):
         """启动取消检查线程"""
@@ -174,15 +197,29 @@ class DownloadWorker(QThread):
                 else:
                     self._download_general()
                 
-        except Exception as e:
-            error_msg = f"下载失败: {str(e)}"
+        except (ValueError, TypeError) as e:
+            error_msg = f"参数错误: {str(e)}"
             self.log_signal.emit(f"❌ {error_msg}")
-            # 如果下载已经完成，不触发错误弹窗
             if not self._is_cancelled and not self._is_paused and not self._download_completed:
-                self.log_signal.emit(f"🔴 触发错误信号: {error_msg}")
                 self.error.emit(error_msg)
-            else:
-                self.log_signal.emit(f"🟢 跳过错误信号: cancelled={self._is_cancelled}, paused={self._is_paused}, completed={self._download_completed}")
+        except (OSError, IOError) as e:
+            error_msg = f"文件操作错误: {str(e)}"
+            self.log_signal.emit(f"❌ {error_msg}")
+            if not self._is_cancelled and not self._is_paused and not self._download_completed:
+                self.error.emit(error_msg)
+        except (ConnectionError, TimeoutError) as e:
+            error_msg = f"网络连接错误: {str(e)}"
+            self.log_signal.emit(f"❌ {error_msg}")
+            if not self._is_cancelled and not self._is_paused and not self._download_completed:
+                self.error.emit(error_msg)
+        except Exception as e:
+            error_msg = f"未知错误: {str(e)}"
+            self.log_signal.emit(f"❌ {error_msg}")
+            if not self._is_cancelled and not self._is_paused and not self._download_completed:
+                self.error.emit(error_msg)
+        finally:
+            # 确保资源被清理
+            self.cleanup_resources()
     
     def _download_netease_music(self):
         """专门处理网易云音乐下载"""

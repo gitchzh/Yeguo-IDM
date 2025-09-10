@@ -80,8 +80,12 @@ def is_standard_resolution(resolution: str) -> bool:
         "256x144", "256x160"
     }
     
+    # 处理None值
+    if resolution is None:
+        return False
+    
     # 清理分辨率字符串，移除空格和特殊字符
-    clean_resolution = resolution.strip().lower()
+    clean_resolution = str(resolution).strip().lower()
     
     # 检查是否在标准分辨率列表中
     if clean_resolution in standard_resolutions:
@@ -413,9 +417,15 @@ class VideoDownloaderMethods:
                 # 短暂延迟，让UI响应
                 time.sleep(0.1)
                 
+        except (ValueError, TypeError) as e:
+            logger.error(f"播放列表解析参数错误: {e}")
+            QMessageBox.critical(self, tr("messages.error"), "播放列表解析失败：请检查链接格式是否正确")
+        except (ConnectionError, TimeoutError) as e:
+            logger.error(f"播放列表解析网络错误: {e}")
+            QMessageBox.critical(self, tr("messages.error"), "播放列表解析失败：网络连接异常，请检查网络后重试")
         except Exception as e:
             logger.error(f"处理播放列表解析失败: {e}")
-            QMessageBox.critical(self, tr("messages.error"), tr("messages.playlist_parse_failed").format(error=str(e)))
+            QMessageBox.critical(self, tr("messages.error"), "播放列表解析失败：请稍后重试")
     
     def _show_playlist_info_dialog(self, playlist_info) -> int:
         """显示播放列表信息对话框"""
@@ -1005,8 +1015,8 @@ class VideoDownloaderMethods:
 
     def standardize_resolution(self, resolution: str) -> str:
         """标准化分辨率到主流分辨率"""
-        if not resolution or "x" not in resolution:
-            return resolution
+        if resolution is None or not resolution or "x" not in str(resolution):
+            return resolution or "unknown"
             
         try:
             width, height = resolution.split("x")
@@ -1180,30 +1190,43 @@ class VideoDownloaderMethods:
         
 
         
-        for res, v_format in sorted(video_formats.items(), key=lambda x: x[0], reverse=True):
+        # 安全地排序分辨率，处理None值
+        def safe_resolution_sort_key(item):
+            res = item[0]
+            if res is None or res == "None":
+                return -1  # None值排在最后
+            if "x" in str(res):
+                try:
+                    width, height = str(res).split("x")
+                    return int(height)
+                except (ValueError, IndexError):
+                    return 0
+            return 0
+        
+        for res, v_format in sorted(video_formats.items(), key=safe_resolution_sort_key, reverse=True):
             # 查找或创建分辨率分组（直接作为根节点）
             res_group = None
             for i in range(self.format_tree.topLevelItemCount()):
-                if self.format_tree.topLevelItem(i).text(0) == res:  # 分辨率名称在第0列
+                if str(self.format_tree.topLevelItem(i).text(0)) == str(res):  # 分辨率名称在第0列
                     res_group = self.format_tree.topLevelItem(i)
-                    logger.info(f"找到现有分辨率分组: {res}")
+                    logger.info(f"找到现有分辨率分组: {str(res) if res is not None else 'unknown'}")
                     break
             if not res_group:
                 res_group = QTreeWidgetItem(self.format_tree)
                 res_group.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserCheckable)  # 分辨率节点可选择
                 res_group.setCheckState(0, Qt.Unchecked)  # 复选框在第0列
-                res_group.setText(0, res)  # 分辨率名称在第0列
+                res_group.setText(0, str(res) if res is not None else "unknown")  # 分辨率名称在第0列
                 res_group.setIcon(0, self.style().standardIcon(self.style().SP_DirIcon))  # 添加文件夹图标
                 res_group.setExpanded(True)
-                logger.info(f"创建新的分辨率分组: {res}")
+                logger.info(f"创建新的分辨率分组: {str(res) if res is not None else 'unknown'}")
                 # 在状态栏显示创建新分辨率分组的信息
-                self.update_scroll_status(f"📁 创建新分辨率分组: {res}")
+                self.update_scroll_status(f"📁 创建新分辨率分组: {str(res) if res is not None else 'unknown'}")
 
             # 为每个分辨率创建最优视频项
             # 在文件名中添加分辨率和编码信息
             base_filename = sanitize_filename(formatted_title, self.save_path)
             vcodec_short = v_format.get("vcodec", "unknown").split(".")[0]  # 提取编码类型
-            filename = f"{base_filename}_{res}_{vcodec_short}"
+            filename = f"{base_filename}_{str(res) if res is not None else 'unknown'}_{vcodec_short}"
             
             # 确保在同一分辨率分组内文件名唯一
             filename = self.ensure_unique_filename(res_group, filename)
@@ -1217,11 +1240,11 @@ class VideoDownloaderMethods:
                 
             # 添加视频项到树形控件
             thumbnail_url = info.get("thumbnail", "")
-            self._add_tree_item(video_item, filename, "mp4", res, total_size, thumbnail_url)
+            self._add_tree_item(video_item, filename, "mp4", str(res) if res is not None else "unknown", total_size, thumbnail_url)
             
-            logger.info(f"添加最优视频项到分辨率 {res} ({vcodec_short}): {filename}")
+            logger.info(f"添加最优视频项到分辨率 {str(res) if res is not None else 'unknown'} ({vcodec_short}): {filename}")
             # 在状态栏显示添加视频项的信息
-            self.update_scroll_status(f"📹 添加视频到 {res}: {filename}")
+            self.update_scroll_status(f"📹 添加视频到 {str(res) if res is not None else 'unknown'}: {filename}")
             
             # 添加到格式列表
             format_id = v_format["format_id"]
@@ -1330,11 +1353,15 @@ class VideoDownloaderMethods:
             
             # 按分辨率排序（从高到低）
             def resolution_sort_key(res_text):
-                if "x" in res_text:
+                # 处理None值
+                if res_text is None or res_text == "None":
+                    return -1  # None值排在最后
+                
+                if "x" in str(res_text):
                     try:
-                        width, height = res_text.split("x")
+                        width, height = str(res_text).split("x")
                         return int(height)  # 按高度排序
-                    except:
+                    except (ValueError, IndexError):
                         return 0
                 return 0
             
@@ -3851,4 +3878,97 @@ class VideoDownloaderMethods:
             logger.info("菜单文本更新完成")
         except Exception as e:
             logger.error(f"更新菜单文本失败: {e}")
+    
+    def check_for_updates(self) -> None:
+        """检查软件更新"""
+        try:
+            from .update_dialog import check_for_updates
+            check_for_updates(self)
+        except Exception as e:
+            logger.error(f"检查更新失败: {e}")
+            QMessageBox.critical(self, "错误", f"检查更新失败: {str(e)}")
+    
+    def auto_check_updates(self) -> None:
+        """自动检查更新（启动时调用）"""
+        try:
+            # 检查用户设置是否启用自动检查
+            auto_check = self.settings.value("auto_check_updates", True, type=bool)
+            if not auto_check:
+                logger.info("用户已禁用自动检查更新")
+                return
+            
+            # 检查是否在24小时内已经检查过
+            last_check = self.settings.value("last_update_check", 0, type=int)
+            current_time = int(time.time())
+            if current_time - last_check < 24 * 60 * 60:  # 24小时
+                logger.info("距离上次检查时间不足24小时，跳过自动检查")
+                return
+            
+            logger.info("开始自动检查更新")
+            
+            # 在后台检查更新，不显示对话框
+            from ..core.update_manager import update_manager
+            from .update_dialog import UpdateDialog
+            
+            # 连接信号
+            update_manager.update_available.connect(self.on_auto_update_available)
+            update_manager.no_update_available.connect(self.on_auto_no_update)
+            update_manager.update_check_failed.connect(self.on_auto_check_failed)
+            
+            # 开始检查
+            update_manager.check_for_updates(force=True)
+            
+        except Exception as e:
+            logger.error(f"自动检查更新失败: {e}")
+    
+    def on_auto_update_available(self, version_info):
+        """自动检查发现新版本"""
+        try:
+            # 断开信号连接
+            from ..core.update_manager import update_manager
+            update_manager.update_available.disconnect(self.on_auto_update_available)
+            update_manager.no_update_available.disconnect(self.on_auto_no_update)
+            update_manager.update_check_failed.disconnect(self.on_auto_check_failed)
+            
+            # 记录检查时间
+            self.settings.setValue("last_update_check", int(time.time()))
+            
+            # 显示更新对话框
+            from .update_dialog import UpdateDialog
+            dialog = UpdateDialog(self, version_info)
+            dialog.exec_()
+            
+        except Exception as e:
+            logger.error(f"处理自动更新发现失败: {e}")
+    
+    def on_auto_no_update(self):
+        """自动检查无更新"""
+        try:
+            # 断开信号连接
+            from ..core.update_manager import update_manager
+            update_manager.update_available.disconnect(self.on_auto_update_available)
+            update_manager.no_update_available.disconnect(self.on_auto_no_update)
+            update_manager.update_check_failed.disconnect(self.on_auto_check_failed)
+            
+            # 记录检查时间
+            self.settings.setValue("last_update_check", int(time.time()))
+            
+            logger.info("自动检查更新：已是最新版本")
+            
+        except Exception as e:
+            logger.error(f"处理自动检查无更新失败: {e}")
+    
+    def on_auto_check_failed(self, error_msg):
+        """自动检查失败"""
+        try:
+            # 断开信号连接
+            from ..core.update_manager import update_manager
+            update_manager.update_available.disconnect(self.on_auto_update_available)
+            update_manager.no_update_available.disconnect(self.on_auto_no_update)
+            update_manager.update_check_failed.disconnect(self.on_auto_check_failed)
+            
+            logger.warning(f"自动检查更新失败: {error_msg}")
+            
+        except Exception as e:
+            logger.error(f"处理自动检查失败失败: {e}")
 

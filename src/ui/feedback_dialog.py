@@ -46,8 +46,14 @@ class EmailSender(QThread):
             receiver_email = os.getenv("RECEIVER_EMAIL", "gmrchzh@gmail.com")
             
             # 检查是否配置了正确的邮箱信息
-            if sender_password == "your_app_password":
+            if sender_password == "your_app_password" or not sender_password:
                 raise Exception("邮件配置未完成，请按照 EMAIL_SETUP.md 文档配置邮箱信息")
+            
+            # 验证邮箱格式
+            import re
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not re.match(email_pattern, sender_email) or not re.match(email_pattern, receiver_email):
+                raise Exception("邮箱格式不正确")
             
             # 创建邮件
             message = MIMEMultipart()

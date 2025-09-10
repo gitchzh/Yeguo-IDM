@@ -78,7 +78,7 @@ def sanitize_filename(filename: str, save_path: str) -> str:
         base, ext = os.path.splitext(filename)
         counter = 1
         new_filename = filename
-        max_attempts = 100  # 限制最大尝试次数
+        max_attempts = Config.MAX_FILE_ATTEMPTS  # 使用配置中的最大尝试次数
         
         # 如果文件已存在，添加数字后缀
         while os.path.exists(os.path.join(save_path, new_filename)):
@@ -137,17 +137,47 @@ def _is_safe_path(path: str) -> bool:
         bool: 是否安全
     """
     try:
-        # 检查路径遍历攻击
-        if ".." in path or path.startswith("/"):
-            return False
+        # 转换为绝对路径
+        abs_path = os.path.abspath(path)
         
-        # 检查是否包含可疑的路径分隔符
-        if "\\" in path and platform.system().lower() != "windows":
-            return False
+        # 检查是否包含危险字符和模式
+        dangerous_patterns = [
+            '..',  # 路径遍历
+            '~',   # 用户目录
+            '$',   # 环境变量
+            '`',   # 命令替换
+            '|',   # 管道
+            '&',   # 后台执行
+            ';',   # 命令分隔符
+            '(',   # 子shell
+            ')',   # 子shell
+            '<',   # 输入重定向
+            '>',   # 输出重定向
+            '*',   # 通配符
+            '?',   # 通配符
+            '[',   # 字符类
+            ']',   # 字符类
+            '{',   # 大括号展开
+            '}',   # 大括号展开
+        ]
+        
+        for pattern in dangerous_patterns:
+            if pattern in path:
+                return False
         
         # 检查路径长度
-        if len(path) > 260:  # Windows路径长度限制
+        if len(abs_path) > 260:  # Windows路径长度限制
             return False
+        
+        # 检查是否为系统敏感目录
+        sensitive_dirs = [
+            '/etc', '/usr/bin', '/usr/sbin', '/bin', '/sbin',  # Linux
+            'C:\\Windows', 'C:\\System32', 'C:\\Program Files',  # Windows
+        ]
+        
+        for sensitive_dir in sensitive_dirs:
+            if abs_path.startswith(sensitive_dir):
+                return False
         
         # 检查是否包含控制字符
         if re.search(r'[\x00-\x1f\x7f-\x9f]', path):
