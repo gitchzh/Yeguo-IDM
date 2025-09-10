@@ -345,6 +345,17 @@ class LogViewer(QDialog):
         self.log_manager = log_manager
         self.setup_ui()
         self.setup_connections()
+        
+        # 初始化定时器
+        self.refresh_timer = QTimer()
+        self.refresh_timer.setTimerType(Qt.CoarseTimer)
+        self.refresh_timer.timeout.connect(self.load_log_content)
+        
+        # 如果自动刷新开启，启动定时器
+        if self.auto_refresh_check.isChecked():
+            interval = self.interval_spin.value() * 1000
+            self.refresh_timer.start(interval)
+        
         self.load_log_content()
         
         # 设置窗口居中显示
@@ -618,20 +629,11 @@ class LogViewer(QDialog):
     
     def _toggle_auto_refresh(self, enabled: bool) -> None:
         """切换自动刷新"""
-        if hasattr(self, 'refresh_timer'):
-            if enabled:
-                interval = self.interval_spin.value() * 1000
-                self.refresh_timer.start(interval)
-            else:
-                self.refresh_timer.stop()
+        if enabled:
+            interval = self.interval_spin.value() * 1000
+            self.refresh_timer.start(interval)
         else:
-            if enabled:
-                self.refresh_timer = QTimer()
-                # 设置定时器类型为CoarseTimer，减少精度要求
-                self.refresh_timer.setTimerType(Qt.CoarseTimer)
-                self.refresh_timer.timeout.connect(self.load_log_content)
-                interval = self.interval_spin.value() * 1000
-                self.refresh_timer.start(interval)
+            self.refresh_timer.stop()
     
     def load_log_content(self) -> None:
         """加载日志内容"""
@@ -647,11 +649,19 @@ class LogViewer(QDialog):
     
     def _on_content_loaded(self, content: str) -> None:
         """日志内容加载完成"""
+        # 添加调试信息
+        print(f"[DEBUG] 日志内容加载完成，长度: {len(content)} 字符")
+        print(f"[DEBUG] 内容前100字符: {content[:100]}")
+        
         self.log_text.setText(content)
         self._scroll_to_bottom()
         self._update_stats()
         self.progress_bar.setVisible(False)
         self.refresh_button.setEnabled(True)
+        
+        # 验证内容是否正确设置
+        actual_content = self.log_text.toPlainText()
+        print(f"[DEBUG] 实际显示内容长度: {len(actual_content)} 字符")
     
     def _on_error_occurred(self, error_msg: str) -> None:
         """日志加载出错"""
@@ -752,19 +762,31 @@ class LogLoader(QThread):
     def run(self) -> None:
         """运行加载任务"""
         try:
+            print(f"[DEBUG] LogLoader开始运行，级别过滤: '{self.level_filter}'")
+            
             content = self.log_manager.get_log_content()
+            print(f"[DEBUG] 原始日志内容长度: {len(content)} 字符")
             
             # 应用级别过滤
-            if self.level_filter != "全部":
+            from ..core.i18n_manager import tr
+            all_levels_text = tr("log.all_levels")
+            print(f"[DEBUG] '所有级别'的翻译: '{all_levels_text}'")
+            
+            if self.level_filter != all_levels_text:
+                print(f"[DEBUG] 应用级别过滤: {self.level_filter}")
                 filtered_lines = []
                 for line in content.split('\n'):
                     if f"[{self.level_filter}]" in line:
                         filtered_lines.append(line)
                 content = '\n'.join(filtered_lines)
+                print(f"[DEBUG] 过滤后内容长度: {len(content)} 字符")
+            else:
+                print(f"[DEBUG] 显示所有级别，不进行过滤")
             
             self.content_loaded.emit(content)
             
         except Exception as e:
+            print(f"[DEBUG] LogLoader出错: {e}")
             self.error_occurred.emit(f"读取日志文件失败: {str(e)}")
 
 

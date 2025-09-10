@@ -108,8 +108,21 @@ class VideoDownloader(QMainWindow, VideoDownloaderMethods):
         from ..core.update_manager import update_manager
         update_manager.set_gitee_priority(True)
         
+        # 初始化预览管理器
+        from ..core.preview_manager import preview_manager
+        preview_manager.preview_error.connect(self._on_preview_error)
+        
         # 启动时自动检查更新（延迟3秒，避免影响启动速度）
         QTimer.singleShot(3000, self.auto_check_updates)
+    
+    def _on_preview_error(self, error_msg: str):
+        """处理预览错误"""
+        try:
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.warning(self, tr("preview.error"), f"{tr('preview.error')}: {error_msg}")
+            logger.error(f"预览错误: {error_msg}")
+        except Exception as e:
+            logger.error(f"处理预览错误失败: {e}")
     
     def get_icon_path(self) -> str:
         """获取图标文件路径"""
@@ -169,22 +182,13 @@ class VideoDownloader(QMainWindow, VideoDownloaderMethods):
 
         # ==================== 配置区域 ====================
         
-        # 按钮行布局（取消解析按钮和选择路径按钮左右对齐）
+        # 按钮行布局（选择路径按钮右对齐）
         button_layout = QHBoxLayout()
         button_layout.setAlignment(Qt.AlignVCenter)  # 垂直居中对齐
         button_layout.setSpacing(12)  # 设置组件间距
         button_layout.setContentsMargins(0, 0, 0, 0)  # 移除边距
         
-        # 取消解析按钮
-        self.cancel_parse_button = QPushButton(tr("main_window.cancel_parse"), self)
-        self.cancel_parse_button.clicked.connect(self.cancel_parse)
-        self.cancel_parse_button.setFixedSize(125, 32)  # 与Choose Path按钮保持相同宽度
-        self.cancel_parse_button.setMinimumSize(125, 32)
-        self.cancel_parse_button.setMaximumSize(125, 32)
-        self.cancel_parse_button.setEnabled(False)  # 初始禁用
-        button_layout.addWidget(self.cancel_parse_button)
-        
-        # 添加弹性空间，实现左右对齐
+        # 添加弹性空间，实现右对齐
         button_layout.addStretch()
         
         # 选择路径按钮
@@ -602,25 +606,6 @@ class VideoDownloader(QMainWindow, VideoDownloaderMethods):
                 border: 1px solid #2670ad;
             }
 
-            /* 取消解析按钮样式 */
-            QPushButton#cancel_parse_button {
-                background-color: #fdfdfd;
-                border: 1px solid #d5d5d5;
-                border-radius: 3px;
-                color: #000000;
-                padding: 4px 8px;
-                min-height: 20px;
-                min-width: 80px;
-                margin: 0px;
-                text-align: center;
-                font-size: 13px;
-                font-family: "Microsoft YaHei", "微软雅黑", sans-serif;
-            }
-
-            QPushButton#cancel_parse_button:hover {
-                background-color: #cce4f7;
-                border: 1px solid #2670ad;
-            }
 
             /* 选择路径按钮样式 */
             QPushButton#path_button {

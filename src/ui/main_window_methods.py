@@ -344,18 +344,19 @@ class VideoDownloaderMethods:
             )
 
     def smart_parse_action(self) -> None:
-        """智能解析按钮动作"""
+        """智能解析按钮动作 - 支持解析/取消解析切换"""
         if self.smart_parse_button.text() == tr("main_window.parse"):
-            # 检查是否正在解析中
-            if self.is_parsing:
-                # 恢复解析
-                self.resume_parse()
-            else:
-                # 开始解析
-                self.parse_video()
-        else:
+            # 开始解析
+            self.parse_video()
+        elif self.smart_parse_button.text() == tr("main_window.pause"):
             # 暂停解析
             self.pause_parse()
+        elif self.smart_parse_button.text() == tr("main_window.cancel_parse"):
+            # 取消解析
+            self.cancel_parse()
+        else:
+            # 恢复解析
+            self.resume_parse()
     
     def parse_video(self) -> None:
         """解析视频链接"""
@@ -456,7 +457,6 @@ class VideoDownloaderMethods:
         # 更新按钮状态
         self.smart_parse_button.setText(tr("main_window.pause"))
         self.smart_parse_button.setEnabled(True)
-        self.cancel_parse_button.setEnabled(True)
         
         self.netease_music_workers = []
         self.total_urls = len(netease_music_urls)
@@ -541,7 +541,6 @@ class VideoDownloaderMethods:
                 self.is_parsing = False
                 self.smart_parse_button.setText(tr("main_window.parse"))
                 self.smart_parse_button.setEnabled(True)
-                self.cancel_parse_button.setEnabled(False)
                 
                 # 清理工作线程
                 self._cleanup_netease_music_workers()
@@ -699,7 +698,6 @@ class VideoDownloaderMethods:
                 self.is_parsing = False
                 self.smart_parse_button.setText(tr("main_window.parse"))
                 self.smart_parse_button.setEnabled(True)
-                self.cancel_parse_button.setEnabled(False)
                 
         except Exception as e:
             logger.error(f"清理网易云音乐工作线程失败: {str(e)}")
@@ -739,7 +737,6 @@ class VideoDownloaderMethods:
         # 更新按钮状态
         self.smart_parse_button.setText(tr("main_window.pause"))
         self.smart_parse_button.setEnabled(True)
-        self.cancel_parse_button.setEnabled(True)
         
         self.parse_workers = []
         self.total_urls = len(urls)
@@ -1254,9 +1251,10 @@ class VideoDownloaderMethods:
             format_info = {
                 "video_id": video_id,
                 "format_id": format_id,
-                "description": f"{filename}.mp4",
-                "type": "video_audio",
+                "description": f"{str(res) if res is not None else 'unknown'} MP4",  # 与树形控件显示保持一致
+                "resolution": str(res) if res is not None else "unknown",
                 "ext": "mp4",
+                "type": "video_audio",
                 "filesize": total_size,
                 "url": info.get("webpage_url", ""),
                 "item": video_item
@@ -1423,9 +1421,11 @@ class VideoDownloaderMethods:
             # 设置默认视频图标
             item.setIcon(0, self.style().standardIcon(self.style().SP_MediaPlay))
             
-        item.setText(1, filename)
-        item.setText(2, file_type)
-        item.setText(3, format_size(filesize))
+        # 设置文本内容
+        item.setText(0, f"{resolution} {file_type.upper()}")  # 第0列：描述
+        item.setText(1, filename)  # 第1列：文件名
+        item.setText(2, file_type)  # 第2列：文件类型
+        item.setText(3, format_size(filesize))  # 第3列：文件大小
         
         # 检查文件是否已下载，设置状态列
         file_path = os.path.join(self.save_path, f"{filename}.{file_type}")
@@ -1580,7 +1580,7 @@ class VideoDownloaderMethods:
             if worker.isRunning():
                 worker.pause()
 
-        self.smart_parse_button.setText(tr("main_window.parse"))
+        self.smart_parse_button.setText(tr("main_window.cancel_parse"))
         # 保持 is_parsing 状态为 True，表示解析任务仍在进行中
         self.update_status_bar("解析已暂停", "", "")
         logger.info("解析已暂停")
@@ -1670,7 +1670,6 @@ class VideoDownloaderMethods:
         # 重置按钮状态
         self.smart_parse_button.setText(tr("main_window.parse"))
         self.smart_parse_button.setEnabled(True)
-        self.cancel_parse_button.setEnabled(False)
         self.status_scroll_label.setText("")
         
         # 确保URL输入框可用
@@ -2685,13 +2684,159 @@ class VideoDownloaderMethods:
         """显示右键菜单"""
         from PyQt5.QtWidgets import QApplication
         menu = QMenu(self)
-        copy_action = menu.addAction("复制文件名")
-        action = menu.exec_(self.format_tree.mapToGlobal(pos))
-        if action == copy_action:
-            item = self.format_tree.currentItem()
-            if item and item.childCount() == 0:
+        
+        # 获取当前选中的项目
+        item = self.format_tree.itemAt(pos)
+        if item and item.childCount() == 0:  # 只对格式项显示菜单
+            # 预览视频选项
+            preview_action = menu.addAction(tr("preview.preview_video"))
+            preview_action.setIcon(self.style().standardIcon(self.style().SP_MediaPlay))
+            
+            menu.addSeparator()
+            
+            # 复制文件名选项
+            copy_action = menu.addAction(tr("preview.copy_filename"))
+            copy_action.setIcon(self.style().standardIcon(self.style().SP_FileDialogDetailedView))
+            
+            # 复制链接选项
+            copy_url_action = menu.addAction(tr("preview.copy_url"))
+            copy_url_action.setIcon(self.style().standardIcon(self.style().SP_FileLinkIcon))
+            
+            # 执行菜单
+            action = menu.exec_(self.format_tree.mapToGlobal(pos))
+            
+            if action == preview_action:
+                self._preview_video_from_item(item)
+            elif action == copy_action:
                 filename = item.text(1)
                 QApplication.clipboard().setText(filename)
+                logger.info(f"已复制文件名: {filename}")
+            elif action == copy_url_action:
+                self._copy_url_from_item(item)
+    
+    def _preview_video_from_item(self, item) -> None:
+        """从树形控件项目预览视频"""
+        try:
+            # 获取格式信息
+            format_info = self._get_format_info_from_item(item)
+            if not format_info:
+                logger.warning("无法获取格式信息")
+                return
+            
+            # 打开预览
+            from ..core.preview_manager import preview_manager
+            success = preview_manager.open_preview(format_info, self)
+            
+            if success:
+                logger.info(f"视频预览已打开: {format_info.get('title', 'Unknown')}")
+            else:
+                logger.warning("打开视频预览失败")
+                
+        except Exception as e:
+            logger.error(f"预览视频失败: {e}")
+    
+    def _get_format_info_from_item(self, item) -> Optional[Dict]:
+        """从树形控件项目获取格式信息"""
+        try:
+            if not item or item.childCount() > 0:
+                return None
+            
+            # 获取项目数据 - 修正列索引
+            # 第0列：描述，第1列：文件名，第2列：扩展名，第3列：大小，第4列：状态
+            description = item.text(0)  # 描述在第0列
+            filename = item.text(1)  # 文件名在第1列
+            ext = item.text(2)  # 扩展名在第2列
+            filesize_text = item.text(3)  # 大小在第3列
+            
+            logger.debug(f"从树形控件获取: description={description}, ext={ext}, filesize={filesize_text}")
+            
+            # 从格式列表中查找匹配的格式
+            for fmt in self.formats:
+                # 直接使用格式数据中的description字段进行匹配
+                fmt_description = fmt.get("description", "")
+                
+                if fmt_description == description:
+                    # 创建预览用的格式信息
+                    preview_info = {
+                        "title": getattr(self, 'current_video_title', '') or "未知视频",
+                        "description": description,
+                        "filename": filename,
+                        "format": fmt.get("format", ""),
+                        "ext": ext,
+                        "filesize": fmt.get("filesize", 0),
+                        "url": fmt.get("url", ""),
+                        "download_url": fmt.get("url", ""),
+                        "webpage_url": getattr(self, 'current_url', ''),
+                        "original_url": getattr(self, 'current_url', '')
+                    }
+                    logger.debug(f"找到匹配格式: {preview_info}")
+                    return preview_info
+            
+            logger.warning(f"没有找到匹配的格式: description={description}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"获取格式信息失败: {e}")
+            return None
+    
+    def _copy_url_from_item(self, item) -> None:
+        """从树形控件项目复制URL"""
+        try:
+            format_info = self._get_format_info_from_item(item)
+            if format_info and format_info.get("url"):
+                from PyQt5.QtWidgets import QApplication
+                QApplication.clipboard().setText(format_info["url"])
+                logger.info(f"已复制URL: {format_info['url']}")
+            else:
+                logger.warning("没有找到可复制的URL")
+        except Exception as e:
+            logger.error(f"复制URL失败: {e}")
+    
+    def download_video_from_preview(self, video_info: Dict) -> None:
+        """从预览对话框下载视频"""
+        try:
+            # 查找对应的格式并自动选择
+            url = video_info.get("url", "")
+            if not url:
+                logger.warning("预览视频信息中没有找到URL")
+                return
+            
+            # 在格式列表中查找匹配的格式
+            for fmt in self.formats:
+                if fmt.get("url") == url:
+                    # 自动选择该格式
+                    self._select_format_for_download(fmt)
+                    logger.info(f"已选择格式进行下载: {fmt.get('description', 'Unknown')}")
+                    return
+            
+            logger.warning("没有找到匹配的格式进行下载")
+            
+        except Exception as e:
+            logger.error(f"从预览下载视频失败: {e}")
+    
+    def _select_format_for_download(self, format_info: Dict) -> None:
+        """选择格式进行下载"""
+        try:
+            # 清空现有选择
+            self.format_tree.clearSelection()
+            
+            # 查找对应的树形控件项目
+            for i in range(self.format_tree.topLevelItemCount()):
+                type_group = self.format_tree.topLevelItem(i)
+                for j in range(type_group.childCount()):
+                    format_item = type_group.child(j)
+                    if format_item.text(0) == format_info.get("description", ""):
+                        # 选择该项目
+                        format_item.setCheckState(0, Qt.Checked)
+                        format_item.setSelected(True)
+                        self.format_tree.scrollToItem(format_item)
+                        logger.info(f"已选择格式: {format_info.get('description', 'Unknown')}")
+                        return
+            
+            logger.warning("没有找到对应的格式项目")
+            
+        except Exception as e:
+            logger.error(f"选择格式失败: {e}")
 
     def show_url_input_context_menu(self, pos: "QPoint") -> None:
         """显示输入框右键菜单（中文）"""
@@ -3745,14 +3890,24 @@ class VideoDownloaderMethods:
                 format_item.setIcon(0, self.style().standardIcon(self.style().SP_MediaPlay))
                 
                 # 设置文本内容
-                description = fmt.get("description", "未知格式")
+                # 生成描述文本：优先使用resolution，如果没有则使用format_id
+                resolution = fmt.get("resolution", "")
+                format_id = fmt.get("format_id", "")
+                if resolution and resolution != "audio only":
+                    description = f"{resolution} {fmt.get('ext', '').upper()}"
+                elif format_id:
+                    description = f"{format_id} {fmt.get('ext', '').upper()}"
+                else:
+                    description = f"未知格式 {fmt.get('ext', '').upper()}"
+                
                 ext = fmt.get("ext", "")
                 filesize = fmt.get("filesize", 0)
                 
-                format_item.setText(1, description)  # 文件名
-                format_item.setText(2, ext)  # 文件类型
-                format_item.setText(3, format_size(filesize))  # 文件大小
-                format_item.setText(4, tr("main_window.not_downloaded"))  # 状态
+                format_item.setText(0, description)  # 第0列：描述
+                format_item.setText(1, f"{getattr(self, 'current_video_title', '') or 'video'}.{ext}")  # 第1列：文件名
+                format_item.setText(2, ext)  # 第2列：文件类型
+                format_item.setText(3, format_size(filesize))  # 第3列：文件大小
+                format_item.setText(4, tr("main_window.not_downloaded"))  # 第4列：状态
                 format_item.setForeground(4, Qt.black)
                 
                 # 将树形控件项保存到格式信息中
@@ -3781,7 +3936,6 @@ class VideoDownloaderMethods:
             
             # 更新按钮文本
             self.smart_parse_button.setText(tr("main_window.parse"))
-            self.cancel_parse_button.setText(tr("main_window.cancel_parse"))
             self.path_button.setText(tr("main_window.choose_path"))
             self.smart_select_button.setText(tr("main_window.select_all"))
             self.smart_download_button.setText(tr("main_window.download"))
